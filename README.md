@@ -13,27 +13,27 @@ Extension para navegadores Chromium que convierte busquedas entre mas de 33 moto
 ## Capturas de pantalla
 
 ### Interfaz principal
-![Popup principal](store/screenshot_1_main.png)
+![Popup principal](assets/screenshot_1_main.png)
 
 Vista principal con motor detectado y botones de conversion en grid de 2 columnas.
 
 ### Busqueda rapida
-![Busqueda rapida](store/screenshot_2_search.png)
+![Busqueda rapida](assets/screenshot_2_search.png)
 
 Modo busqueda con campo de texto y selector de motor para buscar directamente.
 
 ### Configuracion
-![Configuracion](store/screenshot_3_config.png)
+![Configuracion](assets/screenshot_3_config.png)
 
 Panel de configuracion con dominios regionales, visibilidad de motores y checkboxes individuales.
 
 ### Orden personalizable
-![Orden de botones](store/screenshot_4_order.png)
+![Orden de botones](assets/screenshot_4_order.png)
 
 Drag-and-drop para reordenar los motores en el popup.
 
 ### Todos los motores
-![33 motores](store/screenshot_5_all_engines.png)
+![33 motores](assets/screenshot_5_all_engines.png)
 
 Los 33 motores de busqueda soportados.
 
@@ -152,4 +152,4 @@ Solo se permite cargar recursos locales (`'self'`). Sin `unsafe-inline`, sin CDN
 
 [MIT License](LICENSE) - [@686f6c61](https://github.com/686f6c61)
 
-Politica de privacidad: [privacy-policy.html](extension/privacy-policy.html)
+Politica de privacidad: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
