@@ -4,9 +4,10 @@
   ============================================================================
 
   @file        popup.html
-  @description Interfaz principal de usuario del popup de la extensión.
-               Implementa grid responsive, modos dual (Convertir/Buscar),
-               panel de configuración y sistema de atajos de teclado.
+  @description Interfaz principal del popup. Esqueleto HTML minimo;
+               los botones de motores, checkboxes de visibilidad, opciones
+               de selects y lista de orden se generan dinamicamente desde
+               engines.js en popup.js.
 
   @author      @686f6c61
   @repository  https://github.com/686f6c61/chrome-search-engine-converter
@@ -15,660 +16,15 @@
   @date        2025-01-18
 
   ============================================================================
-  ESTRUCTURA:
-  ============================================================================
-  1. Header - Título y alerta de modo prueba
-  2. Mode Toggle - Botones Convertir/Buscar
-  3. Quick Search - Campo de búsqueda y selector de motor
-  4. Engine Buttons - Grid responsive de botones de motores
-  5. Configuration Panel - Dominios, visibilidad, orden
-  6. Footer - Versión y enlace GitHub
-
-  ============================================================================
-  DEPENDENCIAS EXTERNAS:
-  ============================================================================
-  - Roboto font (Google Fonts) - Tipografía principal
-  - Font Awesome 6.0.0+ (CDN) - Iconografía
-  - SortableJS (local) - Drag-and-drop para orden de botones
-
-  ============================================================================
 -->
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Search Engine Converter</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-  <style>
-    /* Extension popup container dimensions and base styling */
-    body {
-      width: 320px;
-      padding: 16px;
-      font-family: 'Roboto', sans-serif;
-      background-color: white;
-      margin: 0;
-      color: #212121;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Header component with logo and title */
-    .header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      font-weight: 700;
-      font-size: 18px;
-    }
-    
-    .logo i {
-      margin-right: 8px;
-      color: #212121;
-    }
-    
-    .logo span.brave {
-      color: #212121;
-    }
-    
-    .logo span.google {
-      color: #4285F4;
-    }
-    
-    /* Status indicator container */
-    .status-container {
-      background-color: #f5f5f5;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s ease;
-    }
-    
-    #status {
-      margin: 0;
-      display: flex;
-      align-items: center;
-      font-weight: 500;
-      color: #212121;
-    }
-    
-    #status i {
-      margin-right: 8px;
-    }
-    
-    #status.success {
-      color: #212121;
-    }
-    
-    #status.error {
-      color: #212121;
-    }
-    
-    #status.warning {
-      color: #212121;
-    }
-    
-    /* Quick search container */
-    .quick-search-container {
-      margin-bottom: 16px;
-      display: none; /* Hidden by default, shown in search mode */
-    }
-
-    .quick-search-container.visible {
-      display: block;
-    }
-
-    .search-input-wrapper {
-      position: relative;
-      margin-bottom: 8px;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #757575;
-      pointer-events: none;
-    }
-
-    #quickSearchInput {
-      width: 100%;
-      padding: 12px 40px 12px 40px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-family: 'Roboto', sans-serif;
-      font-size: 14px;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      box-sizing: border-box;
-    }
-
-    #quickSearchInput:focus {
-      outline: none;
-      border-color: #4285F4;
-      box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
-    }
-
-    .clear-button {
-      position: absolute;
-      right: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: transparent;
-      border: none;
-      color: #757575;
-      cursor: pointer;
-      padding: 8px;
-      border-radius: 50%;
-      transition: background-color 0.2s ease;
-    }
-
-    .clear-button:hover {
-      background-color: #f5f5f5;
-    }
-
-    .quick-engine-select {
-      width: 100%;
-      padding: 10px 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-family: 'Roboto', sans-serif;
-      font-size: 14px;
-      cursor: pointer;
-      background-color: white;
-      transition: border-color 0.2s ease;
-    }
-
-    .quick-engine-select:focus {
-      outline: none;
-      border-color: #4285F4;
-    }
-
-    /* Mode toggle */
-    .mode-toggle {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
-      background-color: #f5f5f5;
-      padding: 4px;
-      border-radius: 8px;
-    }
-
-    .mode-button {
-      flex: 1;
-      background-color: transparent;
-      color: #212121;
-      border: none;
-      padding: 10px 12px;
-      border-radius: 6px;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 500;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .mode-button:hover:not(.active) {
-      background-color: #e8e8e8;
-    }
-
-    .mode-button.active {
-      background-color: #212121;
-      color: white;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .mode-button i {
-      font-size: 14px;
-    }
-
-    /* Search engine button grid layout - Responsive */
-    .search-buttons {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    /* For wider popups, show 3 columns */
-    @media (min-width: 400px) {
-      .search-buttons {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-
-    /* For very wide popups, show 4 columns */
-    @media (min-width: 520px) {
-      .search-buttons {
-        grid-template-columns: repeat(4, 1fr);
-      }
-
-      body {
-        width: 480px;
-      }
-    }
-
-    /* Add hover animation to search buttons */
-    .search-button {
-      position: relative;
-      overflow: hidden;
-    }
-
-    .search-button::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.1);
-      transform: translate(-50%, -50%);
-      transition: width 0.4s, height 0.4s;
-    }
-
-    .search-button:hover::before {
-      width: 300px;
-      height: 300px;
-    }
-
-    /* Copy button styles */
-    .copy-button {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: white;
-      padding: 6px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.2s ease, background-color 0.2s ease;
-      font-size: 11px;
-      backdrop-filter: blur(5px);
-    }
-
-    .search-button:hover .copy-button {
-      opacity: 1;
-    }
-
-    .copy-button:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-
-    .copy-button.copied {
-      background: #4CAF50 !important;
-      opacity: 1 !important;
-    }
-    
-    /* Base styling for search engine buttons */
-    .search-button {
-      background-color: #212121;
-      color: white;
-      border: none;
-      padding: 12px 10px;
-      border-radius: 4px;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 500;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.2s ease, transform 0.1s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    }
-    
-    .search-button i {
-      margin-right: 8px;
-    }
-    
-    /* Search engine specific icon colors */
-    #googleButton i {
-      color: #4285F4;
-    }
-    
-    #duckduckgoButton i {
-      color: #DE5833;
-    }
-    
-    #bingButton i {
-      color: #008373;
-    }
-
-    #amazonButton i {
-      color: #FF9900;
-    }
-    
-    #youtubeButton i {
-      color: #FF0000;
-    }
-    
-    #braveButton i {
-      color: #FB542B;
-    }
-    
-    #wikipediaButton i {
-      color: #000000;
-    }
-    
-    #twitterButton i {
-      color: #1DA1F2;
-    }
-    
-    #githubButton i {
-      color: #333333;
-    }
-    
-    #gitlabButton i {
-      color: #FC6D26;
-    }
-    
-    #stackoverflowButton i {
-      color: #F58025;
-    }
-    
-    #redditButton i {
-      color: #FF4500;
-    }
-    
-    #pinterestButton i {
-      color: #E60023;
-    }
-    
-    #startpageButton i {
-      color: #5B7FDE;
-    }
-    
-    #ecosiaButton i {
-      color: #4CAF50;
-    }
-    
-    #qwantButton i {
-      color: #5C97FF;
-    }
-    
-    #yandexButton i {
-      color: #FF0000;
-    }
-    
-    #baiduButton i {
-      color: #2319DC;
-    }
-    
-    #ebayButton i {
-      color: #0064D2;
-    }
-    
-    #aliexpressButton i {
-      color: #FF6900;
-    }
-    
-    #etsyButton i {
-      color: #F45800;
-    }
-    
-    #scholarButton i {
-      color: #4285F4;
-    }
-    
-    #archiveButton i {
-      color: #000000;
-    }
-    
-    #wolframalphaButton i {
-      color: #DD1100;
-    }
-    
-    #spotifyButton i {
-      color: #1DB954;
-    }
-    
-    #soundcloudButton i {
-      color: #FF3300;
-    }
-    
-    #vimeoButton i {
-      color: #162221;
-    }
-    
-    #linkedinButton i {
-      color: #0077B5;
-    }
-    
-    #tiktokButton i {
-      color: #000000;
-    }
-    
-    /* Button state styles */
-    .search-button:hover {
-      background-color: #000000;
-    }
-    
-    .search-button:active {
-      transform: scale(0.98);
-    }
-    
-    .search-button:disabled {
-      background-color: #555555;
-      cursor: not-allowed;
-    }
-    
-    /* Configuration toggle section */
-    .config-toggle {
-      margin-top: 10px;
-      text-align: center;
-    }
-    
-    .config-button {
-      background-color: #f5f5f5;
-      color: #212121;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 500;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto;
-    }
-    
-    .config-button i {
-      margin-right: 8px;
-    }
-    
-    .config-button:hover {
-      background-color: #e0e0e0;
-    }
-    
-    
-    /* Configuration panel component */
-    .config-panel {
-      background-color: #f5f5f5;
-      border-radius: 8px;
-      padding: 16px;
-      margin-top: 16px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-      display: none; /* Hidden by default, shown via JS */
-    }
-    
-    .config-panel.visible {
-      display: block !important; /* Overrides default when visible */
-    }
-    
-    .config-panel h3 {
-      margin-top: 0;
-      margin-bottom: 12px;
-      font-size: 16px;
-      color: #212121;
-    }
-    
-    /* Configuration item styling */
-    .config-item {
-      margin-bottom: 12px;
-    }
-    
-    .config-item label {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 14px;
-      color: #212121;
-    }
-    
-    .config-item select {
-      width: 100%;
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid #e0e0e0;
-      font-family: 'Roboto', sans-serif;
-      font-size: 14px;
-    }
-    
-    /* Configuration action buttons */
-    .config-actions {
-      margin-top: 16px;
-      text-align: right;
-    }
-    
-    .config-save-button {
-      background-color: #4285F4;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      font-family: 'Roboto', sans-serif;
-      font-weight: 500;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-    
-    .config-save-button:hover {
-      background-color: #3367D6;
-    }
-    
-    .config-description {
-      font-size: 14px;
-      color: #212121;
-      margin-bottom: 8px;
-    }
-    
-    /* Sortable button list for reordering */
-    .button-order-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      background-color: white;
-      border-radius: 4px;
-      border: 1px solid #e0e0e0;
-      overflow-y: auto;
-      max-height: 400px;
-    }
-
-    /* Scrollbar styling for order list */
-    .button-order-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .button-order-list::-webkit-scrollbar-track {
-      background: #f5f5f5;
-    }
-
-    .button-order-list::-webkit-scrollbar-thumb {
-      background: #bdbdbd;
-      border-radius: 4px;
-    }
-
-    .button-order-list::-webkit-scrollbar-thumb:hover {
-      background: #9e9e9e;
-    }
-    
-    .button-order-item {
-      padding: 10px;
-      background-color: white;
-      border-bottom: 1px solid #e0e0e0;
-      display: flex;
-      align-items: center;
-      cursor: move;
-      transition: background-color 0.2s ease;
-    }
-    
-    .button-order-item:last-child {
-      border-bottom: none;
-    }
-    
-    .button-order-item:hover {
-      background-color: #f5f5f5;
-    }
-    
-    .button-order-item i.fa-grip-lines {
-      margin-right: 10px;
-      color: #9e9e9e;
-    }
-    
-    .button-order-item i:not(.fa-grip-lines) {
-      margin-right: 8px;
-    }
-    
-    /* Sortable ghost effect */
-    .sortable-ghost {
-      opacity: 0.4;
-      background-color: #f0f0f0;
-    }
-    
-    /* Footer component */
-    .footer {
-      font-size: 11px;
-      color: #757575;
-      text-align: center;
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid #e0e0e0;
-    }
-    
-    .footer a {
-      color: #4285F4;
-      text-decoration: none;
-    }
-    
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* Animation for highlighting interactive elements */
-    .pulse {
-      animation: pulse-animation 1s infinite;
-    }
-
-    @keyframes pulse-animation {
-      0% {
-        box-shadow: 0 0 0 0 rgba(33, 33, 33, 0.4);
-      }
-      70% {
-        box-shadow: 0 0 0 10px rgba(33, 33, 33, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(33, 33, 33, 0);
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="css/fontawesome.min.css">
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <!-- Header with logo -->
@@ -678,28 +34,23 @@
       Search Engine Converter
     </div>
   </div>
-  
+
   <!-- Status indicator -->
   <div class="status-container">
-    <p id="status"><i class="fas fa-info-circle"></i> Selecciona un motor de búsqueda</p>
+    <p id="status"><i class="fas fa-info-circle"></i> Selecciona un motor de busqueda</p>
   </div>
 
   <!-- Quick search box -->
   <div class="quick-search-container">
     <div class="search-input-wrapper">
       <i class="fas fa-search search-icon"></i>
-      <input type="text" id="quickSearchInput" placeholder="Búsqueda rápida en cualquier motor..." />
+      <input type="text" id="quickSearchInput" placeholder="Busqueda rapida en cualquier motor..." />
       <button id="clearSearchButton" class="clear-button" style="display: none;">
         <i class="fas fa-times"></i>
       </button>
     </div>
     <select id="quickSearchEngine" class="quick-engine-select">
-      <option value="google">Google</option>
-      <option value="brave">Brave</option>
-      <option value="duckduckgo">DuckDuckGo</option>
-      <option value="bing">Bing</option>
-      <option value="amazon">Amazon</option>
-      <option value="youtube">YouTube</option>
+      <!-- Opciones generadas dinamicamente desde engines.js -->
     </select>
   </div>
 
@@ -713,116 +64,24 @@
     </button>
   </div>
 
-  <!-- Search engine button grid -->
-  <div class="search-buttons">
-    <button id="googleButton" class="search-button engine-button">
-      <i class="fab fa-google"></i> Google
-      <span class="copy-button" data-engine="google" title="Copiar URL"><i class="fas fa-copy"></i></span>
-    </button>
-    <button id="duckduckgoButton" class="search-button engine-button">
-      <i class="fab fa-d-and-d"></i> DuckDuckGo
-      <span class="copy-button" data-engine="duckduckgo" title="Copiar URL"><i class="fas fa-copy"></i></span>
-    </button>
-    <button id="bingButton" class="search-button engine-button">
-      <i class="fab fa-microsoft"></i> Bing
-      <span class="copy-button" data-engine="bing" title="Copiar URL"><i class="fas fa-copy"></i></span>
-    </button>
-    <button id="amazonButton" class="search-button engine-button">
-      <i class="fab fa-amazon"></i> Amazon
-    </button>
-    <button id="youtubeButton" class="search-button engine-button">
-      <i class="fab fa-youtube"></i> YouTube
-    </button>
-    <button id="braveButton" class="search-button engine-button">
-      <i class="fas fa-shield-alt"></i> Brave
-    </button>
-    <button id="wikipediaButton" class="search-button engine-button">
-      <i class="fab fa-wikipedia-w"></i> Wikipedia
-    </button>
-    <button id="twitterButton" class="search-button engine-button">
-      <i class="fab fa-twitter"></i> Twitter/X
-    </button>
-    <button id="githubButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-github"></i> GitHub
-    </button>
-    <button id="gitlabButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-gitlab"></i> GitLab
-    </button>
-    <button id="stackoverflowButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-stack-overflow"></i> Stack Overflow
-    </button>
-    <button id="redditButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-reddit"></i> Reddit
-    </button>
-    <button id="pinterestButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-pinterest"></i> Pinterest
-    </button>
-    <button id="startpageButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-search"></i> Startpage
-    </button>
-    <button id="ecosiaButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-tree"></i> Ecosia
-    </button>
-    <button id="qwantButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-search"></i> Qwant
-    </button>
-    <button id="yandexButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-search"></i> Yandex
-    </button>
-    <button id="baiduButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-search"></i> Baidu
-    </button>
-    <button id="ebayButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-shopping-cart"></i> eBay
-    </button>
-    <button id="aliexpressButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-shopping-bag"></i> AliExpress
-    </button>
-    <button id="etsyButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-store"></i> Etsy
-    </button>
-    <button id="scholarButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-graduation-cap"></i> Scholar
-    </button>
-    <button id="archiveButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-archive"></i> Archive.org
-    </button>
-    <button id="wolframalphaButton" class="search-button engine-button" style="display: none;">
-      <i class="fas fa-calculator"></i> WolframAlpha
-    </button>
-    <button id="spotifyButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-spotify"></i> Spotify
-    </button>
-    <button id="soundcloudButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-soundcloud"></i> SoundCloud
-    </button>
-    <button id="vimeoButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-vimeo"></i> Vimeo
-    </button>
-    <button id="linkedinButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-linkedin"></i> LinkedIn
-    </button>
-    <button id="tiktokButton" class="search-button engine-button" style="display: none;">
-      <i class="fab fa-tiktok"></i> TikTok
-    </button>
-  </div>
-  
-  
+  <!-- Search engine button grid (generated dynamically from engines.js) -->
+  <div class="search-buttons"></div>
+
   <!-- Configuration toggle button -->
   <div class="config-toggle">
     <button id="configToggleButton" class="config-button">
-      <i class="fas fa-cog"></i> Configuración
+      <i class="fas fa-cog"></i> Configuracion
     </button>
   </div>
-  
+
   <!-- Configuration panel (initially hidden) -->
   <div id="configPanel" class="config-panel">
     <!-- Domain configuration section -->
-    <h3>Configuración de dominios</h3>
+    <h3>Configuracion de dominios</h3>
     <div class="config-item">
       <label for="amazonDomain">Dominio de Amazon:</label>
       <select id="amazonDomain">
-        <option value="es">España (.es)</option>
+        <option value="es">Espana (.es)</option>
         <option value="com">USA (.com)</option>
         <option value="co.uk">Reino Unido (.co.uk)</option>
         <option value="de">Alemania (.de)</option>
@@ -834,187 +93,46 @@
       <label for="youtubeDomain">Dominio de YouTube:</label>
       <select id="youtubeDomain">
         <option value="com">Global (.com)</option>
-        <option value="es">España (.es)</option>
+        <option value="es">Espana (.es)</option>
       </select>
     </div>
-    
+
     <!-- Engine visibility configuration section -->
-    <h3>Motores de búsqueda</h3>
+    <h3>Motores de busqueda</h3>
     <div class="config-item">
-      <label for="defaultSearchEngine">Motor predeterminado para búsqueda con botón derecho:</label>
+      <label for="defaultSearchEngine">Motor predeterminado para busqueda con boton derecho:</label>
       <select id="defaultSearchEngine" style="margin-bottom: 12px;">
-        <option value="googleButton">Google</option>
-        <option value="braveButton">Brave</option>
-        <option value="duckduckgoButton">DuckDuckGo</option>
-        <option value="bingButton">Bing</option>
-        <option value="amazonButton">Amazon</option>
-        <option value="youtubeButton">YouTube</option>
-        <option value="wikipediaButton">Wikipedia</option>
-        <option value="twitterButton">Twitter/X</option>
-        <option value="githubButton">GitHub</option>
-        <option value="gitlabButton">GitLab</option>
-        <option value="stackoverflowButton">Stack Overflow</option>
-        <option value="redditButton">Reddit</option>
-        <option value="pinterestButton">Pinterest</option>
-        <option value="startpageButton">Startpage</option>
-        <option value="ecosiaButton">Ecosia</option>
-        <option value="qwantButton">Qwant</option>
-        <option value="yandexButton">Yandex</option>
-        <option value="baiduButton">Baidu</option>
-        <option value="ebayButton">eBay</option>
-        <option value="aliexpressButton">AliExpress</option>
-        <option value="etsyButton">Etsy</option>
-        <option value="scholarButton">Google Scholar</option>
-        <option value="archiveButton">Archive.org</option>
-        <option value="wolframalphaButton">WolframAlpha</option>
-        <option value="spotifyButton">Spotify</option>
-        <option value="soundcloudButton">SoundCloud</option>
-        <option value="vimeoButton">Vimeo</option>
-        <option value="linkedinButton">LinkedIn</option>
-        <option value="tiktokButton">TikTok</option>
+        <!-- Opciones generadas dinamicamente desde engines.js -->
       </select>
       <p class="config-description">Motores visibles en el popup:</p>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleGoogle" checked style="margin-right: 6px;"> Google
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleBrave" checked style="margin-right: 6px;"> Brave
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleDuckduckgo" checked style="margin-right: 6px;"> DuckDuckGo
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleBing" checked style="margin-right: 6px;"> Bing
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleAmazon" checked style="margin-right: 6px;"> Amazon
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleYoutube" checked style="margin-right: 6px;"> YouTube
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleWikipedia" checked style="margin-right: 6px;"> Wikipedia
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleTwitter" checked style="margin-right: 6px;"> Twitter/X
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleGithub" style="margin-right: 6px;"> GitHub
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleGitlab" style="margin-right: 6px;"> GitLab
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleStackoverflow" style="margin-right: 6px;"> Stack Overflow
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleReddit" style="margin-right: 6px;"> Reddit
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visiblePinterest" style="margin-right: 6px;"> Pinterest
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleStartpage" style="margin-right: 6px;"> Startpage
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleEcosia" style="margin-right: 6px;"> Ecosia
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleQwant" style="margin-right: 6px;"> Qwant
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleYandex" style="margin-right: 6px;"> Yandex
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleBaidu" style="margin-right: 6px;"> Baidu
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleEbay" style="margin-right: 6px;"> eBay
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleAliexpress" style="margin-right: 6px;"> AliExpress
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleEtsy" style="margin-right: 6px;"> Etsy
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleScholar" style="margin-right: 6px;"> Google Scholar
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleArchive" style="margin-right: 6px;"> Archive.org
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleWolframalpha" style="margin-right: 6px;"> WolframAlpha
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleSpotify" style="margin-right: 6px;"> Spotify
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleSoundcloud" style="margin-right: 6px;"> SoundCloud
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleVimeo" style="margin-right: 6px;"> Vimeo
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleLinkedin" style="margin-right: 6px;"> LinkedIn
-        </label>
-        <label style="display: flex; align-items: center; font-size: 13px;">
-          <input type="checkbox" id="visibleTiktok" style="margin-right: 6px;"> TikTok
-        </label>
+      <div id="visibilityCheckboxes" class="visibility-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+        <!-- Checkboxes generados dinamicamente desde engines.js -->
       </div>
     </div>
-    
+
     <!-- Button order customization section -->
     <h3>Orden de botones</h3>
     <div class="config-item">
       <p class="config-description">Arrastra para cambiar el orden de los botones:</p>
       <ul id="buttonOrderList" class="button-order-list">
-        <li data-id="googleButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fab fa-google" style="color: #4285F4;"></i> Google
-        </li>
-        <li data-id="duckduckgoButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fab fa-d-and-d" style="color: #DE5833;"></i> DuckDuckGo
-        </li>
-        <li data-id="bingButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fab fa-microsoft" style="color: #008373;"></i> Bing
-        </li>
-        <li data-id="amazonButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fab fa-amazon" style="color: #FF9900;"></i> Amazon
-        </li>
-        <li data-id="youtubeButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fab fa-youtube" style="color: #FF0000;"></i> YouTube
-        </li>
-        <li data-id="braveButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fas fa-shield-alt" style="color: #FB542B;"></i> Brave
-        </li>
-        <li data-id="wikipediaButton" class="button-order-item">
-          <i class="fas fa-grip-lines"></i>
-          <i class="fab fa-wikipedia-w" style="color: #000000;"></i> Wikipedia
-        </li>
+        <!-- Items generados dinamicamente desde engines.js -->
       </ul>
     </div>
-    
+
     <!-- Save configuration button -->
     <div class="config-actions">
       <button id="saveConfigButton" class="config-save-button">Guardar</button>
     </div>
   </div>
-  
+
   <!-- Footer with version and repository link -->
   <div class="footer">
     <p>v2.0 | <a href="https://github.com/686f6c61/chrome-search-engine-converter" target="_blank">GitHub</a></p>
   </div>
-  
-  <!-- External dependencies -->
-  <script src="Sortable.min.js"></script>
-  <!-- Application script -->
+
+  <!-- Scripts: engines.js debe cargarse primero (registro de motores) -->
+  <script src="engines.js"></script>
+  <script src="Sortable.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -4,182 +4,174 @@
  * ============================================================================
  *
  * @file        popup.js
- * @description Controlador principal del popup de la extensión. Gestiona la
- *              interfaz de usuario, detección de búsquedas, conversión entre
- *              motores, configuración y todas las interacciones del usuario.
+ * @description Controlador principal del popup. Genera todo el HTML dinamico
+ *              desde el registro centralizado engines.js y gestiona la interfaz,
+ *              deteccion de busquedas, conversion entre motores, configuracion
+ *              y todas las interacciones del usuario.
  *
  * @author      @686f6c61
  * @repository  https://github.com/686f6c61/chrome-search-engine-converter
  * @license     MIT License
- * @version     2.0.0
+ * @version     2.1.0
  * @date        2025-01-18
  *
- * @requires    chrome.tabs - Para detección de URL actual y apertura de pestañas
- * @requires    chrome.storage - Para persistencia de configuración
- * @requires    Sortable.min.js - Para drag-and-drop en orden de botones
- *
- * ============================================================================
- * FUNCIONALIDADES PRINCIPALES:
- * ============================================================================
- * - Detección automática de búsquedas en 34+ motores
- * - Conversión de búsquedas manteniendo términos exactos
- * - Modo dual: Convertir búsquedas existentes / Realizar búsquedas nuevas
- * - Sistema de copiar URL al portapapeles sin abrir pestañas
- * - Atajos de teclado (Alt+1-9, Ctrl+K, ESC)
- * - Configuración completa (dominios, visibilidad, orden)
- * - Grid responsive adaptativo (2-4 columnas)
- * - Animaciones y feedback visual mejorado
- *
- * ============================================================================
- * ARQUITECTURA:
- * ============================================================================
- * El código está organizado en secciones funcionales:
- *
- * 1. ESTADO Y CONFIGURACIÓN
- *    - configState: Objeto global con toda la configuración
- *    - Estado por defecto y carga desde storage
- *
- * 2. INICIALIZACIÓN
- *    - DOMContentLoaded: Punto de entrada principal
- *    - Carga de configuración y setup de eventos
- *
- * 3. DETECCIÓN Y CONVERSIÓN
- *    - extractSearchQuery: Extrae términos desde URLs
- *    - handleEngineConversion: Maneja clics en botones de motores
- *    - buildSearchUrl: Construye URLs de destino
- *
- * 4. INTERFAZ DE USUARIO
- *    - updateEngineButtonVisibility: Muestra/oculta botones
- *    - setupQuickSearch: Modo búsqueda rápida
- *    - setupKeyboardShortcuts: Atajos de teclado
- *
- * 5. CONFIGURACIÓN
- *    - loadConfiguration: Carga desde storage
- *    - saveConfiguration: Guarda en storage
- *    - setupConfigurationPanel: Panel de opciones
+ * @requires    engines.js - Registro centralizado (SEARCH_ENGINES, buildSearchUrl,
+ *              extractQuery, detectEngine, isImageSearch, STORAGE_KEY)
+ * @requires    chrome.tabs - Para deteccion de URL actual y apertura de pestanas
+ * @requires    chrome.storage - Para persistencia de configuracion
+ * @requires    Sortable.js - Para drag-and-drop en orden de botones
  *
  * ============================================================================
  */
 
-/**
- * ============================================================================
- * ESTADO Y CONFIGURACIÓN GLOBAL
- * ============================================================================
- */
+/* ============================================================================
+ * ESTADO Y CONFIGURACION GLOBAL
+ * ============================================================================ */
 
 /**
- * Estado de configuración global de la extensión
- * Contiene todas las preferencias del usuario
+ * Estado de configuracion del popup. Se inicializa con valores por defecto
+ * y se sobreescribe con los datos guardados en chrome.storage.local.
  *
- * @type {Object}
- * @property {string} amazonDomain - Dominio regional de Amazon
- * @property {string} youtubeDomain - Dominio regional de YouTube
- * @property {string} defaultSearchEngine - Motor predeterminado
- * @property {Array<string>} buttonOrder - Orden personalizado de botones
- * @property {Object} visibleEngines - Visibilidad de cada motor
+ * @property {string}  amazonDomain       - Dominio de Amazon ('es', 'com', etc.)
+ * @property {string}  youtubeDomain      - Dominio de YouTube ('com', 'es')
+ * @property {string}  defaultSearchEngine - buttonId del motor por defecto
+ * @property {Array}   buttonOrder        - Orden personalizado de botones (buttonIds)
+ * @property {Object}  visibleEngines     - Mapa {engineId: boolean} de visibilidad
  */
 let configState = {
   amazonDomain: 'es',
   youtubeDomain: 'com',
   defaultSearchEngine: 'googleButton',
   buttonOrder: [],
-  visibleEngines: {
-    google: true,
-    brave: true,
-    duckduckgo: true,
-    bing: true,
-    amazon: true,
-    youtube: true,
-    wikipedia: true,
-    twitter: true,
-    github: false,
-    gitlab: false,
-    stackoverflow: false,
-    reddit: false,
-    pinterest: false,
-    startpage: false,
-    ecosia: false,
-    qwant: false,
-    yandex: false,
-    baidu: false,
-    ebay: false,
-    aliexpress: false,
-    etsy: false,
-    scholar: false,
-    archive: false,
-    wolframalpha: false,
-    spotify: false,
-    soundcloud: false,
-    vimeo: false,
-    linkedin: false,
-    tiktok: false,
-    perplexity: false,
-    kagi: false,
-    searx: false,
-    you: false
-  }
+  /* Genera el mapa de visibilidad desde SEARCH_ENGINES.visibleByDefault */
+  visibleEngines: Object.fromEntries(
+    Object.entries(SEARCH_ENGINES).map(([id, engine]) => [id, engine.visibleByDefault])
+  )
 };
 
-/**
+/* ============================================================================
+ * INICIALIZACION DEL POPUP
  * ============================================================================
- * INICIALIZACIÓN DEL POPUP
- * ============================================================================
- */
+ * Orden de inicializacion (importa):
+ *   1. Renderizar HTML dinamico (botones, checkboxes, selects)
+ *   2. Cargar configuracion guardada (sobreescribe valores por defecto)
+ *   3. Registrar event listeners (sobre los elementos ya renderizados)
+ *   4. Aplicar visibilidad y orden (con la config ya cargada)
+ *   5. Detectar pagina actual (habilita/deshabilita botones)
+ * ============================================================================ */
 
-/**
- * Punto de entrada principal de la extensión
- * Se ejecuta cuando el DOM del popup está completamente cargado
- *
- * @listens DOMContentLoaded
- * @async
- * @returns {Promise<void>}
- *
- * @description
- * Inicializa todos los componentes de la interfaz en orden secuencial:
- * 1. Carga configuración guardada
- * 2. Configura event listeners de botones
- * 3. Inicializa búsqueda rápida
- * 4. Configura toggle de modos
- * 5. Activa botones de copiar
- * 6. Registra atajos de teclado
- * 7. Actualiza visibilidad de motores
- * 8. Inicializa drag-and-drop
- * 9. Detecta página actual
- */
 document.addEventListener('DOMContentLoaded', async function() {
-  console.log('Popup initializing...');
+  /* Paso 1: Generar HTML dinamico desde SEARCH_ENGINES */
+  renderEngineButtons();
+  renderVisibilityCheckboxes();
+  renderDefaultEngineOptions();
+
+  /* Paso 2: Cargar config guardada (await porque es asincrono con chrome.storage) */
   await loadConfiguration();
+
+  /* Paso 3: Registrar eventos sobre los elementos ya existentes */
   setupEventListeners();
   setupQuickSearch();
   setupModeToggle();
   setupCopyButtons();
   setupKeyboardShortcuts();
+
+  /* Paso 4: Aplicar la configuracion cargada a la interfaz */
   updateEngineButtonVisibility();
   initializeButtonOrdering();
+
+  /* Paso 5: Detectar si la pestana activa es un motor de busqueda */
   checkCurrentPage();
 });
 
-/**
- * ============================================================================
- * GESTIÓN DE INTERFAZ DE USUARIO
- * ============================================================================
- */
+/* ============================================================================
+ * GENERACION DINAMICA DE HTML
+ * ============================================================================ */
 
 /**
- * Actualiza el mensaje de estado en el header del popup
+ * Genera los botones de motores de busqueda en el contenedor .search-buttons
+ * Itera SEARCH_ENGINES y crea un boton por cada motor con su icono y color.
+ */
+function renderEngineButtons() {
+  const container = document.querySelector('.search-buttons');
+  if (!container) return;
+
+  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+    const button = document.createElement('button');
+    button.id = engine.buttonId;
+    button.className = 'search-button engine-button';
+    button.style.display = engine.visibleByDefault ? '' : 'none';
+
+    const icon = document.createElement('i');
+    icon.className = engine.icon;
+    icon.style.color = engine.color;
+    button.appendChild(icon);
+    button.appendChild(document.createTextNode(' ' + engine.name));
+
+    if (engine.hasCopyButton) {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-button';
+      copyBtn.setAttribute('data-engine', engine.id);
+      copyBtn.setAttribute('aria-label', 'Copiar URL');
+      const copyIcon = document.createElement('i');
+      copyIcon.className = 'fas fa-copy';
+      copyBtn.appendChild(copyIcon);
+      button.appendChild(copyBtn);
+    }
+
+    container.appendChild(button);
+  });
+}
+
+/**
+ * Genera los checkboxes de visibilidad en el contenedor #visibilityCheckboxes.
+ * Cada checkbox controla si un motor aparece en el popup.
+ */
+function renderVisibilityCheckboxes() {
+  const container = document.getElementById('visibilityCheckboxes');
+  if (!container) return;
+
+  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display: flex; align-items: center; font-size: 13px;';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'visible' + id.charAt(0).toUpperCase() + id.slice(1);
+    checkbox.style.marginRight = '6px';
+    checkbox.checked = engine.visibleByDefault;
+
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(' ' + engine.name));
+    container.appendChild(label);
+  });
+}
+
+/**
+ * Genera las opciones del select #defaultSearchEngine desde SEARCH_ENGINES.
+ */
+function renderDefaultEngineOptions() {
+  const select = document.getElementById('defaultSearchEngine');
+  if (!select) return;
+
+  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+    const option = document.createElement('option');
+    option.value = engine.buttonId;
+    option.textContent = engine.name;
+    select.appendChild(option);
+  });
+}
+
+/* ============================================================================
+ * GESTION DE INTERFAZ DE USUARIO
+ * ============================================================================ */
+
+/**
+ * Actualiza el mensaje de estado en el header del popup.
+ * Usa innerHTML porque necesita iconos Font Awesome dentro del elemento.
  *
- * @function updateStatus
- * @param {string} message - Mensaje a mostrar
- * @param {string} [type='info'] - Tipo de mensaje: 'info', 'success', 'error', 'warning'
- * @returns {void}
- *
- * @description
- * Cambia el mensaje de estado con el icono apropiado y animación.
- * Los mensajes no-info incluyen animación de pulso por 2 segundos.
- *
- * @example
- * updateStatus('Búsqueda detectada correctamente', 'success');
- * updateStatus('No se detectó ninguna búsqueda', 'warning');
+ * @param {string} message - Mensaje a mostrar (texto plano, sin HTML externo)
+ * @param {string} [type='info'] - Tipo: 'info', 'success', 'error', 'warning'
  */
 function updateStatus(message, type = 'info') {
   const statusElement = document.getElementById('status');
@@ -188,19 +180,24 @@ function updateStatus(message, type = 'info') {
   statusElement.classList.remove('success', 'error', 'warning');
   statusContainer.classList.remove('pulse');
 
-  let icon = 'fa-info-circle';
-  if (type === 'success') {
-    icon = 'fa-check-circle';
-    statusElement.classList.add('success');
-  } else if (type === 'error') {
-    icon = 'fa-exclamation-circle';
-    statusElement.classList.add('error');
-  } else if (type === 'warning') {
-    icon = 'fa-exclamation-triangle';
-    statusElement.classList.add('warning');
+  const icons = {
+    info: 'fa-info-circle',
+    success: 'fa-check-circle',
+    error: 'fa-exclamation-circle',
+    warning: 'fa-exclamation-triangle'
+  };
+  const icon = icons[type] || icons.info;
+
+  if (type !== 'info') {
+    statusElement.classList.add(type);
   }
 
-  statusElement.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+  // Construir con DOM seguro: icono + texto
+  statusElement.textContent = '';
+  const iconEl = document.createElement('i');
+  iconEl.className = 'fas ' + icon;
+  statusElement.appendChild(iconEl);
+  statusElement.appendChild(document.createTextNode(' ' + message));
 
   if (type !== 'info') {
     statusContainer.classList.add('pulse');
@@ -208,205 +205,248 @@ function updateStatus(message, type = 'info') {
   }
 }
 
-// Load configuration from storage
+/**
+ * Muestra una notificacion temporal en la esquina superior derecha.
+ *
+ * @param {string} message - Mensaje a mostrar
+ * @param {string} [type='info'] - Tipo: 'info', 'success', 'error'
+ */
+function showNotification(message, type = 'info') {
+  let container = document.getElementById('notification-container');
+
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notification-container';
+    container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
+    document.body.appendChild(container);
+  }
+
+  const notification = document.createElement('div');
+  notification.className = 'notification ' + type;
+  notification.style.cssText =
+    'background: ' + (type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3') + ';' +
+    'color: white; padding: 12px 20px; border-radius: 4px; margin-bottom: 10px;' +
+    'box-shadow: 0 2px 5px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s;';
+  notification.textContent = message;
+
+  container.appendChild(notification);
+  setTimeout(() => notification.style.opacity = '1', 10);
+
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        container.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
+/* ============================================================================
+ * CONFIGURACION: CARGA Y GUARDADO
+ * ============================================================================
+ * La configuracion se persiste en chrome.storage.local como JSON serializado
+ * bajo la clave STORAGE_KEY (definida en engines.js).
+ *
+ * Flujo: loadConfiguration() -> JSON.parse -> applyConfigToUI()
+ *        saveConfiguration() -> JSON.stringify -> chrome.storage.local.set
+ * ============================================================================ */
+
+/**
+ * Carga la configuracion del usuario desde chrome.storage.local.
+ * Es asincrona porque chrome.storage usa callbacks; se envuelve en una Promise
+ * para poder usar await en la inicializacion.
+ *
+ * Si la configuracion esta corrupta (JSON invalido), se ignora silenciosamente
+ * y se mantienen los valores por defecto.
+ *
+ * @returns {Promise<void>}
+ */
 async function loadConfiguration() {
   return new Promise((resolve) => {
-    // Check if chrome.storage is available
     if (typeof chrome === 'undefined' || !chrome.storage) {
-      console.warn('Chrome storage API not available');
       resolve();
       return;
     }
 
     try {
-      chrome.storage.local.get('searchEngineConverterConfig', function(data) {
+      chrome.storage.local.get(STORAGE_KEY, function(data) {
         if (chrome.runtime.lastError) {
-          console.error('Error accessing storage:', chrome.runtime.lastError);
           resolve();
           return;
         }
 
-        if (data.searchEngineConverterConfig) {
+        if (data[STORAGE_KEY]) {
           try {
-            const savedConfig = JSON.parse(data.searchEngineConverterConfig);
+            const savedConfig = JSON.parse(data[STORAGE_KEY]);
             Object.keys(savedConfig).forEach(key => {
               if (configState.hasOwnProperty(key)) {
                 configState[key] = savedConfig[key];
               }
             });
             applyConfigToUI();
-          } catch (error) {
-            console.error('Error parsing configuration:', error);
+          } catch (_) {
+            // Configuracion corrupta, se usa la por defecto
           }
         }
         resolve();
       });
-    } catch (error) {
-      console.error('Error loading configuration:', error);
+    } catch (_) {
       resolve();
     }
   });
 }
 
-// Apply configuration to UI
+/**
+ * Aplica los valores de configState a los elementos del DOM:
+ * selects de dominio, motor por defecto y checkboxes de visibilidad.
+ */
 function applyConfigToUI() {
-  // Amazon domain
   const amazonDomainSelect = document.getElementById('amazonDomain');
   if (amazonDomainSelect) {
     amazonDomainSelect.value = configState.amazonDomain || 'es';
   }
 
-  // YouTube domain
   const youtubeDomainSelect = document.getElementById('youtubeDomain');
   if (youtubeDomainSelect) {
     youtubeDomainSelect.value = configState.youtubeDomain || 'com';
   }
 
-  // Default search engine
   const defaultSearchEngineSelect = document.getElementById('defaultSearchEngine');
   if (defaultSearchEngineSelect) {
     defaultSearchEngineSelect.value = configState.defaultSearchEngine || 'googleButton';
   }
 
-  // Visibility checkboxes
   Object.keys(configState.visibleEngines).forEach(engine => {
-    const checkbox = document.getElementById(`visible${engine.charAt(0).toUpperCase() + engine.slice(1)}`);
+    const checkbox = document.getElementById('visible' + engine.charAt(0).toUpperCase() + engine.slice(1));
     if (checkbox) {
       checkbox.checked = configState.visibleEngines[engine];
     }
   });
 }
 
-// Setup event listeners
-function setupEventListeners() {
-  // Engine conversion buttons
-  const engineButtons = [
-    { id: 'googleButton', engine: 'google' },
-    { id: 'braveButton', engine: 'brave' },
-    { id: 'duckduckgoButton', engine: 'duckduckgo' },
-    { id: 'bingButton', engine: 'bing' },
-    { id: 'amazonButton', engine: 'amazon' },
-    { id: 'youtubeButton', engine: 'youtube' },
-    { id: 'wikipediaButton', engine: 'wikipedia' },
-    { id: 'twitterButton', engine: 'twitter' },
-    { id: 'githubButton', engine: 'github' },
-    { id: 'gitlabButton', engine: 'gitlab' },
-    { id: 'stackoverflowButton', engine: 'stackoverflow' },
-    { id: 'redditButton', engine: 'reddit' },
-    { id: 'pinterestButton', engine: 'pinterest' },
-    { id: 'startpageButton', engine: 'startpage' },
-    { id: 'ecosiaButton', engine: 'ecosia' },
-    { id: 'qwantButton', engine: 'qwant' },
-    { id: 'yandexButton', engine: 'yandex' },
-    { id: 'baiduButton', engine: 'baidu' },
-    { id: 'ebayButton', engine: 'ebay' },
-    { id: 'aliexpressButton', engine: 'aliexpress' },
-    { id: 'etsyButton', engine: 'etsy' },
-    { id: 'scholarButton', engine: 'scholar' },
-    { id: 'archiveButton', engine: 'archive' },
-    { id: 'wolframalphaButton', engine: 'wolframalpha' },
-    { id: 'spotifyButton', engine: 'spotify' },
-    { id: 'soundcloudButton', engine: 'soundcloud' },
-    { id: 'vimeoButton', engine: 'vimeo' },
-    { id: 'linkedinButton', engine: 'linkedin' },
-    { id: 'tiktokButton', engine: 'tiktok' }
-  ];
+/**
+ * Guarda configState completo en chrome.storage.local.
+ * Se llama cada vez que el usuario modifica cualquier opcion.
+ */
+function saveConfiguration() {
+  if (typeof chrome === 'undefined' || !chrome.storage) return;
 
-  engineButtons.forEach(({ id, engine }) => {
-    const button = document.getElementById(id);
+  try {
+    chrome.storage.local.set({
+      [STORAGE_KEY]: JSON.stringify(configState)
+    });
+  } catch (_) {
+    // Error al guardar, sin accion
+  }
+}
+
+/* ============================================================================
+ * EVENT LISTENERS
+ * ============================================================================
+ * Todos los listeners se registran sobre elementos ya existentes en el DOM.
+ * Los botones de motor se crean dinamicamente en renderEngineButtons(), por lo
+ * que setupEventListeners() se llama DESPUES del renderizado.
+ * Los copy buttons usan delegacion de eventos (ver setupCopyButtons()).
+ * ============================================================================ */
+
+/**
+ * Registra todos los event listeners de la interfaz:
+ *   - Click en cada boton de motor -> handleEngineConversion()
+ *   - Toggle del panel de configuracion
+ *   - Cambios en selects de dominio
+ *   - Cambios en checkboxes de visibilidad
+ *   - Boton guardar
+ */
+function setupEventListeners() {
+  // Botones de motores: generar desde SEARCH_ENGINES
+  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+    const button = document.getElementById(engine.buttonId);
     if (button) {
-      button.addEventListener('click', () => handleEngineConversion(engine));
+      button.addEventListener('click', () => handleEngineConversion(id));
     }
   });
 
-  // Configuration toggle
+  // Toggle del panel de configuracion
   const configToggleButton = document.getElementById('configToggleButton');
   const configPanel = document.getElementById('configPanel');
 
   if (configToggleButton && configPanel) {
     configToggleButton.addEventListener('click', function() {
       configPanel.classList.toggle('visible');
-      configToggleButton.innerHTML = configPanel.classList.contains('visible') ?
-        '<i class="fas fa-times"></i> Cerrar' :
-        '<i class="fas fa-cog"></i> Configuración';
+      // Construir con DOM seguro
+      configToggleButton.textContent = '';
+      const icon = document.createElement('i');
+      if (configPanel.classList.contains('visible')) {
+        icon.className = 'fas fa-times';
+        configToggleButton.appendChild(icon);
+        configToggleButton.appendChild(document.createTextNode(' Cerrar'));
+      } else {
+        icon.className = 'fas fa-cog';
+        configToggleButton.appendChild(icon);
+        configToggleButton.appendChild(document.createTextNode(' Configuracion'));
+      }
     });
   }
 
-  // Domain selectors
-  if (document.getElementById('amazonDomain')) {
-    document.getElementById('amazonDomain').addEventListener('change', function() {
+  // Selectores de dominio
+  const amazonDomain = document.getElementById('amazonDomain');
+  if (amazonDomain) {
+    amazonDomain.addEventListener('change', function() {
       configState.amazonDomain = this.value;
       saveConfiguration();
     });
   }
 
-  if (document.getElementById('youtubeDomain')) {
-    document.getElementById('youtubeDomain').addEventListener('change', function() {
+  const youtubeDomain = document.getElementById('youtubeDomain');
+  if (youtubeDomain) {
+    youtubeDomain.addEventListener('change', function() {
       configState.youtubeDomain = this.value;
       saveConfiguration();
     });
   }
 
-  if (document.getElementById('defaultSearchEngine')) {
-    document.getElementById('defaultSearchEngine').addEventListener('change', function() {
+  const defaultSearchEngine = document.getElementById('defaultSearchEngine');
+  if (defaultSearchEngine) {
+    defaultSearchEngine.addEventListener('change', function() {
       configState.defaultSearchEngine = this.value;
       saveConfiguration();
     });
   }
 
-  // Visibility checkboxes
+  // Checkboxes de visibilidad
   Object.keys(configState.visibleEngines).forEach(engine => {
-    const checkboxId = `visible${engine.charAt(0).toUpperCase() + engine.slice(1)}`;
-    const checkbox = document.getElementById(checkboxId);
+    const checkbox = document.getElementById('visible' + engine.charAt(0).toUpperCase() + engine.slice(1));
     if (checkbox) {
       checkbox.addEventListener('change', function() {
         configState.visibleEngines[engine] = checkbox.checked;
         updateEngineButtonVisibility();
         updateOrderList();
-        updateQuickSearchEngines(); // Update dropdown in search mode
+        updateQuickSearchEngines();
         saveConfiguration();
       });
     }
   });
 
-  // Save button
+  // Boton guardar
   const saveButton = document.getElementById('saveConfigButton');
   if (saveButton) {
     saveButton.addEventListener('click', function() {
       saveConfiguration();
-      showNotification('Configuración guardada', 'success');
+      showNotification('Configuracion guardada', 'success');
     });
   }
 }
 
-/**
- * ============================================================================
- * CONVERSIÓN DE BÚSQUEDAS
- * ============================================================================
- */
+/* ============================================================================
+ * CONVERSION DE BUSQUEDAS
+ * ============================================================================ */
 
 /**
- * Maneja la conversión de búsqueda al motor de destino seleccionado
- * Extrae los términos de búsqueda de la URL actual y abre nueva pestaña
+ * Maneja la conversion de busqueda al motor de destino seleccionado.
+ * Usa extractQuery(), isImageSearch() y buildSearchUrl() de engines.js.
  *
- * @function handleEngineConversion
- * @param {string} targetEngine - ID del motor de destino (google, brave, etc.)
- * @returns {void}
- *
- * @description
- * Función principal de conversión que:
- * 1. Obtiene la pestaña activa mediante chrome.tabs API
- * 2. Extrae términos de búsqueda de la URL actual
- * 3. Detecta si es búsqueda de imágenes
- * 4. Construye URL de destino con buildSearchUrl
- * 5. Abre nueva pestaña con la búsqueda convertida
- *
- * Incluye validación completa de Chrome APIs y manejo de errores.
- *
- * @example
- * // Usuario está en Google buscando "javascript"
- * handleEngineConversion('brave');
- * // Abre: https://search.brave.com/search?q=javascript
+ * @param {string} targetEngine - ID del motor de destino
  */
 function handleEngineConversion(targetEngine) {
   if (typeof chrome === 'undefined' || !chrome.tabs) {
@@ -416,35 +456,27 @@ function handleEngineConversion(targetEngine) {
 
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (chrome.runtime.lastError) {
-      console.error('Error querying tabs:', chrome.runtime.lastError);
-      updateStatus('Error al obtener pestaña activa', 'error');
+      updateStatus('Error al obtener pestana activa', 'error');
       return;
     }
 
     if (!tabs || tabs.length === 0) {
-      updateStatus('No se encontró pestaña activa', 'error');
+      updateStatus('No se encontro pestana activa', 'error');
       return;
     }
 
     const activeTab = tabs[0];
     const currentUrl = activeTab.url;
 
-    // Detect image search
-    const isImageSearch = currentUrl.includes('tbm=isch') ||
-                         currentUrl.includes('/images') ||
-                         currentUrl.includes('iax=images') ||
-                         currentUrl.includes('images/search');
-
-    // Extract query
+    const imgSearch = isImageSearch(currentUrl);
     let query = extractQuery(currentUrl);
 
     if (!query) {
-      updateStatus('No se detectó ninguna búsqueda', 'error');
+      updateStatus('No se detecto ninguna busqueda', 'error');
       return;
     }
 
-    // Build target URL
-    const targetUrl = buildSearchUrl(targetEngine, query, isImageSearch);
+    const targetUrl = buildSearchUrl(targetEngine, query, imgSearch, configState);
 
     if (targetUrl) {
       chrome.tabs.create({ url: targetUrl });
@@ -455,245 +487,47 @@ function handleEngineConversion(targetEngine) {
   });
 }
 
-// Extract query from URL
-function extractQuery(url) {
-  const patterns = [
-    /[?&]q=([^&]+)/,
-    /[?&]search_query=([^&]+)/,
-    /[?&]k=([^&]+)/,
-    /[?&]search=([^&]+)/,
-    /[?&]text=([^&]+)/,
-    /[?&]wd=([^&]+)/,
-    /[?&]_nkw=([^&]+)/,
-    /[?&]SearchText=([^&]+)/,
-    /[?&]query=([^&]+)/,
-    /[?&]i=([^&]+)/
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return decodeURIComponent(match[1].replace(/\+/g, ' '));
-    }
-  }
-
-  return null;
-}
+/* ============================================================================
+ * DETECCION DE PAGINA ACTUAL
+ * ============================================================================ */
 
 /**
- * Construye la URL de búsqueda para el motor especificado
- * Soporta 34+ motores con formatos de URL únicos y búsquedas de imágenes
+ * Detecta si la pestana activa es una pagina de busqueda.
+ * Si lo es, habilita los botones de conversion y muestra el motor detectado.
+ * Si no, deshabilita los botones y muestra un aviso.
  *
- * @function buildSearchUrl
- * @param {string} engine - ID del motor (google, brave, duckduckgo, etc.)
- * @param {string} query - Términos de búsqueda sin codificar
- * @param {boolean} [isImageSearch=false] - Si es búsqueda de imágenes
- * @returns {string|null} URL completa o null si el motor no existe
- *
- * @description
- * Construye URLs con el formato específico de cada motor. Maneja:
- * - Codificación automática de consultas (encodeURIComponent)
- * - Dominios regionales (Amazon, YouTube) desde configState
- * - Búsquedas de imágenes cuando el motor lo soporta
- * - Formatos especiales (Twitter hashtags, Reddit subreddits, etc.)
- *
- * @example
- * buildSearchUrl('google', 'typescript tutorial', false)
- * // Returns: 'https://www.google.com/search?q=typescript%20tutorial'
- *
- * @example
- * buildSearchUrl('amazon', 'laptop', false)
- * // Returns: 'https://www.amazon.es/s?k=laptop' (según configState.amazonDomain)
- *
- * @example
- * buildSearchUrl('google', 'cats', true)
- * // Returns: 'https://www.google.com/search?q=cats&tbm=isch'
+ * Usa detectEngine() e isImageSearch() de engines.js.
  */
-function buildSearchUrl(engine, query, isImageSearch = false) {
-  const encodedQuery = encodeURIComponent(query);
-
-  switch(engine) {
-    case 'google':
-      let googleUrl = `https://www.google.com/search?q=${encodedQuery}`;
-      if (isImageSearch) googleUrl += '&tbm=isch';
-      return googleUrl;
-
-    case 'brave':
-      return isImageSearch ?
-        `https://search.brave.com/images?q=${encodedQuery}` :
-        `https://search.brave.com/search?q=${encodedQuery}`;
-
-    case 'duckduckgo':
-      let ddgUrl = `https://duckduckgo.com/?q=${encodedQuery}`;
-      if (isImageSearch) ddgUrl += '&iax=images&ia=images';
-      return ddgUrl;
-
-    case 'bing':
-      return isImageSearch ?
-        `https://www.bing.com/images/search?q=${encodedQuery}` :
-        `https://www.bing.com/search?q=${encodedQuery}`;
-
-    case 'amazon':
-      return `https://www.amazon.${configState.amazonDomain}/s?k=${encodedQuery}`;
-
-    case 'youtube':
-      return `https://www.youtube.com/results?search_query=${encodedQuery}`;
-
-    case 'wikipedia':
-      return `https://es.wikipedia.org/wiki/Special:Search?search=${encodedQuery}`;
-
-    case 'twitter':
-      return `https://twitter.com/search?q=${encodedQuery}`;
-
-    case 'github':
-      return `https://github.com/search?q=${encodedQuery}`;
-
-    case 'gitlab':
-      return `https://gitlab.com/search?search=${encodedQuery}`;
-
-    case 'stackoverflow':
-      return `https://stackoverflow.com/search?q=${encodedQuery}`;
-
-    case 'reddit':
-      return `https://www.reddit.com/search/?q=${encodedQuery}`;
-
-    case 'pinterest':
-      return `https://www.pinterest.com/search/pins/?q=${encodedQuery}`;
-
-    case 'startpage':
-      return isImageSearch ?
-        `https://www.startpage.com/sp/search?cat=images&q=${encodedQuery}` :
-        `https://www.startpage.com/do/search?q=${encodedQuery}`;
-
-    case 'ecosia':
-      return isImageSearch ?
-        `https://www.ecosia.org/images?q=${encodedQuery}` :
-        `https://www.ecosia.org/search?q=${encodedQuery}`;
-
-    case 'qwant':
-      let qwantUrl = `https://www.qwant.com/?q=${encodedQuery}`;
-      if (isImageSearch) qwantUrl += '&t=images';
-      return qwantUrl;
-
-    case 'yandex':
-      return isImageSearch ?
-        `https://yandex.com/images/search?text=${encodedQuery}` :
-        `https://yandex.com/search/?text=${encodedQuery}`;
-
-    case 'baidu':
-      return isImageSearch ?
-        `https://image.baidu.com/search/index?tn=baiduimage&word=${encodedQuery}` :
-        `https://www.baidu.com/s?wd=${encodedQuery}`;
-
-    case 'ebay':
-      return `https://www.ebay.com/sch/i.html?_nkw=${encodedQuery}`;
-
-    case 'aliexpress':
-      return `https://www.aliexpress.com/wholesale?SearchText=${encodedQuery}`;
-
-    case 'etsy':
-      return `https://www.etsy.com/search?q=${encodedQuery}`;
-
-    case 'scholar':
-      return `https://scholar.google.com/scholar?q=${encodedQuery}`;
-
-    case 'archive':
-      return `https://archive.org/search?query=${encodedQuery}`;
-
-    case 'wolframalpha':
-      return `https://www.wolframalpha.com/input?i=${encodedQuery}`;
-
-    case 'spotify':
-      return `https://open.spotify.com/search/${encodedQuery}`;
-
-    case 'soundcloud':
-      return `https://soundcloud.com/search?q=${encodedQuery}`;
-
-    case 'vimeo':
-      return `https://vimeo.com/search?q=${encodedQuery}`;
-
-    case 'linkedin':
-      return `https://www.linkedin.com/search/results/all/?keywords=${encodedQuery}`;
-
-    case 'tiktok':
-      return `https://www.tiktok.com/search?q=${encodedQuery}`;
-
-    case 'perplexity':
-      return `https://www.perplexity.ai/search?q=${encodedQuery}`;
-
-    case 'kagi':
-      return `https://kagi.com/search?q=${encodedQuery}`;
-
-    case 'searx':
-      return `https://searx.be/search?q=${encodedQuery}`;
-
-    case 'you':
-      return `https://you.com/search?q=${encodedQuery}`;
-
-    default:
-      return null;
-  }
-}
-
-// Check current page
 function checkCurrentPage() {
   if (typeof chrome === 'undefined' || !chrome.tabs) {
-    console.warn('Chrome tabs API not available');
     updateStatus('Modo de prueba - API no disponible', 'warning');
     return;
   }
 
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (chrome.runtime.lastError) {
-      console.error('Error querying tabs:', chrome.runtime.lastError);
-      return;
-    }
+    if (chrome.runtime.lastError) return;
 
     if (!tabs || tabs.length === 0) {
-      updateStatus('No se encontró pestaña activa', 'warning');
+      updateStatus('No se encontro pestana activa', 'warning');
       return;
     }
 
     const activeTab = tabs[0];
     const url = activeTab.url || '';
 
-    const engines = {
-      'google.com/search': 'Google',
-      'search.brave.com': 'Brave',
-      'bing.com/search': 'Bing',
-      'duckduckgo.com': 'DuckDuckGo',
-      'amazon.': 'Amazon',
-      'youtube.com/results': 'YouTube',
-      'wikipedia.org': 'Wikipedia',
-      'twitter.com/search': 'Twitter/X',
-      'github.com/search': 'GitHub',
-      'stackoverflow.com/search': 'Stack Overflow',
-      'reddit.com/search': 'Reddit'
-    };
-
-    let currentEngine = null;
-    let isSearchEngine = false;
-
-    for (const [pattern, name] of Object.entries(engines)) {
-      if (url.includes(pattern)) {
-        currentEngine = name;
-        isSearchEngine = true;
-        break;
-      }
-    }
-
-    if (isSearchEngine && currentEngine) {
-      const isImageSearch = url.includes('tbm=isch') || url.includes('/images') || url.includes('iax=images');
-      let statusMessage = `Motor detectado: ${currentEngine}`;
-      if (isImageSearch) statusMessage += ' (Imágenes)';
+    const engineId = detectEngine(url);
+    if (engineId) {
+      const engine = SEARCH_ENGINES[engineId];
+      const imgSearch = isImageSearch(url);
+      let statusMessage = 'Motor detectado: ' + engine.name;
+      if (imgSearch) statusMessage += ' (Imagenes)';
       updateStatus(statusMessage, 'success');
 
-      // Enable/disable buttons based on search type
       document.querySelectorAll('.engine-button').forEach(btn => {
         btn.disabled = false;
       });
     } else {
-      updateStatus('No es una página de búsqueda compatible', 'warning');
+      updateStatus('No es una pagina de busqueda compatible', 'warning');
       document.querySelectorAll('.engine-button').forEach(btn => {
         btn.disabled = true;
       });
@@ -701,57 +535,33 @@ function checkCurrentPage() {
   });
 }
 
-// Update engine button visibility
-function updateEngineButtonVisibility() {
-  const engineMapping = {
-    google: 'googleButton',
-    brave: 'braveButton',
-    duckduckgo: 'duckduckgoButton',
-    bing: 'bingButton',
-    amazon: 'amazonButton',
-    youtube: 'youtubeButton',
-    wikipedia: 'wikipediaButton',
-    twitter: 'twitterButton',
-    github: 'githubButton',
-    gitlab: 'gitlabButton',
-    stackoverflow: 'stackoverflowButton',
-    reddit: 'redditButton',
-    pinterest: 'pinterestButton',
-    startpage: 'startpageButton',
-    ecosia: 'ecosiaButton',
-    qwant: 'qwantButton',
-    yandex: 'yandexButton',
-    baidu: 'baiduButton',
-    ebay: 'ebayButton',
-    aliexpress: 'aliexpressButton',
-    etsy: 'etsyButton',
-    scholar: 'scholarButton',
-    archive: 'archiveButton',
-    wolframalpha: 'wolframalphaButton',
-    spotify: 'spotifyButton',
-    soundcloud: 'soundcloudButton',
-    vimeo: 'vimeoButton',
-    linkedin: 'linkedinButton',
-    tiktok: 'tiktokButton'
-  };
+/* ============================================================================
+ * VISIBILIDAD Y ORDEN DE BOTONES
+ * ============================================================================ */
 
-  Object.entries(engineMapping).forEach(([engine, buttonId]) => {
-    const button = document.getElementById(buttonId);
+/**
+ * Muestra u oculta cada boton de motor segun configState.visibleEngines.
+ * Despues aplica el orden personalizado si existe.
+ */
+function updateEngineButtonVisibility() {
+  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+    const button = document.getElementById(engine.buttonId);
     if (button) {
-      button.style.display = configState.visibleEngines[engine] ? '' : 'none';
+      button.style.display = configState.visibleEngines[id] ? '' : 'none';
     }
   });
 
   applyButtonOrder();
 }
 
-// Initialize button ordering
+/**
+ * Inicializa el drag-and-drop de botones usando SortableJS.
+ * Permite al usuario reordenar los botones arrastrando en la lista de config.
+ * El nuevo orden se guarda automaticamente en configState y chrome.storage.
+ */
 function initializeButtonOrdering() {
   const orderList = document.getElementById('buttonOrderList');
-  if (!orderList || typeof Sortable === 'undefined') {
-    console.warn('Sortable library not found');
-    return;
-  }
+  if (!orderList || typeof Sortable === 'undefined') return;
 
   updateOrderList();
 
@@ -767,87 +577,55 @@ function initializeButtonOrdering() {
   });
 }
 
-// Update order list
+/**
+ * Actualiza la lista de orden de botones. Usa innerHTML para los items
+ * porque necesita iconos Font Awesome con estilos inline (contenido
+ * controlado desde SEARCH_ENGINES, sin entrada de usuario).
+ */
 function updateOrderList() {
   const orderList = document.getElementById('buttonOrderList');
   if (!orderList) return;
 
-  orderList.innerHTML = '';
-
-  // Complete engine info for ALL supported engines
-  const engineInfo = {
-    google: { icon: 'fab fa-google', color: '#4285F4', name: 'Google' },
-    brave: { icon: 'fas fa-shield-alt', color: '#FB542B', name: 'Brave' },
-    duckduckgo: { icon: 'fab fa-d-and-d', color: '#DE5833', name: 'DuckDuckGo' },
-    bing: { icon: 'fab fa-microsoft', color: '#008373', name: 'Bing' },
-    amazon: { icon: 'fab fa-amazon', color: '#FF9900', name: 'Amazon' },
-    youtube: { icon: 'fab fa-youtube', color: '#FF0000', name: 'YouTube' },
-    wikipedia: { icon: 'fab fa-wikipedia-w', color: '#000000', name: 'Wikipedia' },
-    twitter: { icon: 'fab fa-twitter', color: '#1DA1F2', name: 'Twitter/X' },
-    github: { icon: 'fab fa-github', color: '#333333', name: 'GitHub' },
-    gitlab: { icon: 'fab fa-gitlab', color: '#FC6D26', name: 'GitLab' },
-    stackoverflow: { icon: 'fab fa-stack-overflow', color: '#F58025', name: 'Stack Overflow' },
-    reddit: { icon: 'fab fa-reddit', color: '#FF4500', name: 'Reddit' },
-    pinterest: { icon: 'fab fa-pinterest', color: '#E60023', name: 'Pinterest' },
-    startpage: { icon: 'fas fa-search', color: '#5B7FDE', name: 'Startpage' },
-    ecosia: { icon: 'fas fa-tree', color: '#4CAF50', name: 'Ecosia' },
-    qwant: { icon: 'fas fa-search', color: '#5C97FF', name: 'Qwant' },
-    yandex: { icon: 'fas fa-search', color: '#FF0000', name: 'Yandex' },
-    baidu: { icon: 'fas fa-search', color: '#2319DC', name: 'Baidu' },
-    ebay: { icon: 'fas fa-shopping-cart', color: '#0064D2', name: 'eBay' },
-    aliexpress: { icon: 'fas fa-shopping-bag', color: '#FF6900', name: 'AliExpress' },
-    etsy: { icon: 'fas fa-store', color: '#F45800', name: 'Etsy' },
-    scholar: { icon: 'fas fa-graduation-cap', color: '#4285F4', name: 'Google Scholar' },
-    archive: { icon: 'fas fa-archive', color: '#000000', name: 'Archive.org' },
-    wolframalpha: { icon: 'fas fa-calculator', color: '#DD1100', name: 'WolframAlpha' },
-    spotify: { icon: 'fab fa-spotify', color: '#1DB954', name: 'Spotify' },
-    soundcloud: { icon: 'fab fa-soundcloud', color: '#FF3300', name: 'SoundCloud' },
-    vimeo: { icon: 'fab fa-vimeo', color: '#162221', name: 'Vimeo' },
-    linkedin: { icon: 'fab fa-linkedin', color: '#0077B5', name: 'LinkedIn' },
-    tiktok: { icon: 'fab fa-tiktok', color: '#000000', name: 'TikTok' },
-    perplexity: { icon: 'fas fa-brain', color: '#20808D', name: 'Perplexity AI' },
-    kagi: { icon: 'fas fa-search', color: '#FF6A00', name: 'Kagi' },
-    searx: { icon: 'fas fa-search', color: '#3050FF', name: 'SearX' },
-    you: { icon: 'fas fa-search', color: '#00B8D9', name: 'You.com' }
-  };
+  // Limpiar lista existente
+  while (orderList.firstChild) {
+    orderList.removeChild(orderList.firstChild);
+  }
 
   const visibleEngines = Object.keys(configState.visibleEngines)
-    .filter(engine => configState.visibleEngines[engine]);
+    .filter(id => configState.visibleEngines[id]);
 
-  visibleEngines.forEach(engine => {
-    const info = engineInfo[engine];
-    if (!info) {
-      // Fallback for engines without defined info
-      const li = document.createElement('li');
-      li.setAttribute('data-id', `${engine}Button`);
-      li.className = 'button-order-item';
-      li.innerHTML = `
-        <i class="fas fa-grip-lines"></i>
-        <i class="fas fa-search" style="color: #666;"></i> ${engine.charAt(0).toUpperCase() + engine.slice(1)}
-      `;
-      orderList.appendChild(li);
-      return;
-    }
+  visibleEngines.forEach(id => {
+    const engine = SEARCH_ENGINES[id];
+    if (!engine) return;
 
-    const buttonId = `${engine}Button`;
     const li = document.createElement('li');
-    li.setAttribute('data-id', buttonId);
+    li.setAttribute('data-id', engine.buttonId);
     li.className = 'button-order-item';
-    li.innerHTML = `
-      <i class="fas fa-grip-lines"></i>
-      <i class="${info.icon}" style="color: ${info.color};"></i> ${info.name}
-    `;
+
+    const gripIcon = document.createElement('i');
+    gripIcon.className = 'fas fa-grip-lines';
+    li.appendChild(gripIcon);
+    li.appendChild(document.createTextNode(' '));
+
+    const engineIcon = document.createElement('i');
+    engineIcon.className = engine.icon;
+    engineIcon.style.color = engine.color;
+    li.appendChild(engineIcon);
+    li.appendChild(document.createTextNode(' ' + engine.name));
+
     orderList.appendChild(li);
   });
 }
 
-// Apply button order
+/**
+ * Reordena los botones en el DOM segun configState.buttonOrder.
+ * Usa appendChild() que mueve el elemento existente (no lo clona).
+ */
 function applyButtonOrder() {
   const searchButtons = document.querySelector('.search-buttons');
   if (!searchButtons || !configState.buttonOrder.length) return;
 
   const orderedButtons = [];
-
   configState.buttonOrder.forEach(buttonId => {
     const button = document.getElementById(buttonId);
     if (button && button.style.display !== 'none') {
@@ -860,114 +638,18 @@ function applyButtonOrder() {
   });
 }
 
-// Save configuration
-function saveConfiguration() {
-  if (typeof chrome === 'undefined' || !chrome.storage) {
-    console.warn('Chrome storage API not available - configuration not saved');
-    return;
-  }
-
-  try {
-    chrome.storage.local.set({
-      'searchEngineConverterConfig': JSON.stringify(configState)
-    }, function() {
-      if (chrome.runtime.lastError) {
-        console.error('Error saving configuration:', chrome.runtime.lastError);
-      } else {
-        console.log('Configuration saved successfully');
-      }
-    });
-  } catch (error) {
-    console.error('Error saving configuration:', error);
-  }
-}
-
-/**
- * Muestra una notificación temporal en la esquina superior derecha
- *
- * @function showNotification
- * @param {string} message - Mensaje a mostrar
- * @param {string} [type='info'] - Tipo: 'info', 'success', 'error'
- * @returns {void}
- *
- * @description
- * Crea un elemento de notificación con auto-desaparición después de 3 segundos.
- * Si el contenedor no existe, lo crea dinámicamente. Las notificaciones se
- * apilan verticalmente y se remueven automáticamente con animación.
- *
- * @example
- * showNotification('URL copiada al portapapeles', 'success');
- * showNotification('Error al guardar configuración', 'error');
- */
-function showNotification(message, type = 'info') {
-  let container = document.getElementById('notification-container');
-
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'notification-container';
-    container.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
-    `;
-    document.body.appendChild(container);
-  }
-
-  const notification = document.createElement('div');
-  notification.className = `notification ${type}`;
-  notification.style.cssText = `
-    background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-    color: white;
-    padding: 12px 20px;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    opacity: 0;
-    transition: opacity 0.3s;
-  `;
-  notification.textContent = message;
-
-  container.appendChild(notification);
-
-  setTimeout(() => notification.style.opacity = '1', 10);
-
-  setTimeout(() => {
-    notification.style.opacity = '0';
-    setTimeout(() => {
-      if (notification.parentNode) {
-        container.removeChild(notification);
-      }
-    }, 300);
-  }, 3000);
-}
-
-/**
+/* ============================================================================
+ * BUSQUEDA RAPIDA Y MODOS
  * ============================================================================
- * BÚSQUEDA RÁPIDA Y MODOS
- * ============================================================================
- */
+ * La extension tiene dos modos:
+ *   1. Convertir: Detecta la busqueda actual y la convierte a otro motor
+ *   2. Buscar: Permite escribir un termino y buscarlo directamente
+ * Se alternan con los botones "Convertir" / "Buscar" (mode toggle).
+ * ============================================================================ */
 
 /**
- * Configura la funcionalidad de búsqueda rápida (modo Buscar)
- *
- * @function setupQuickSearch
- * @returns {void}
- *
- * @description
- * Inicializa el sistema de búsqueda rápida que permite realizar búsquedas
- * nuevas sin estar en una página de resultados. Configura:
- * - Event listeners para el campo de entrada
- * - Botón de limpiar (aparece/desaparece según el contenido)
- * - Búsqueda al presionar Enter
- * - Selector de motor (sincronizado con motores visibles)
- *
- * El motor seleccionado y los términos de búsqueda se combinan para
- * construir la URL mediante buildSearchUrl y abrir nueva pestaña.
- *
- * @example
- * // Usuario activa modo "Buscar", escribe "typescript", selecciona Google
- * // Presiona Enter → Abre https://www.google.com/search?q=typescript
+ * Configura el campo de busqueda rapida: input, boton limpiar y tecla Enter.
+ * Tambien puebla el select de motores con los motores visibles.
  */
 function setupQuickSearch() {
   const searchInput = document.getElementById('quickSearchInput');
@@ -976,12 +658,10 @@ function setupQuickSearch() {
 
   if (!searchInput) return;
 
-  // Show/hide clear button
   searchInput.addEventListener('input', function() {
     clearButton.style.display = searchInput.value ? 'block' : 'none';
   });
 
-  // Clear button functionality
   if (clearButton) {
     clearButton.addEventListener('click', function() {
       searchInput.value = '';
@@ -990,72 +670,38 @@ function setupQuickSearch() {
     });
   }
 
-  // Search on Enter key
   searchInput.addEventListener('keypress', function(e) {
     if (e.key === 'Enter' && searchInput.value.trim()) {
       performQuickSearch(searchInput.value.trim(), engineSelect.value);
     }
   });
 
-  // Populate engine select with visible engines
   updateQuickSearchEngines();
 }
 
-// Update quick search engine options
+/**
+ * Actualiza el select de motores de busqueda rapida.
+ * Solo muestra los motores que el usuario tiene habilitados (visibles).
+ * Si no hay ninguno visible, muestra Google como opcion de respaldo.
+ */
 function updateQuickSearchEngines() {
   const select = document.getElementById('quickSearchEngine');
   if (!select) return;
 
-  select.innerHTML = '';
+  // Limpiar opciones existentes
+  while (select.firstChild) {
+    select.removeChild(select.firstChild);
+  }
 
-  // Complete list of ALL engines with proper names
-  const engineNames = {
-    google: 'Google',
-    brave: 'Brave',
-    duckduckgo: 'DuckDuckGo',
-    bing: 'Bing',
-    amazon: 'Amazon',
-    youtube: 'YouTube',
-    wikipedia: 'Wikipedia',
-    twitter: 'Twitter/X',
-    github: 'GitHub',
-    gitlab: 'GitLab',
-    stackoverflow: 'Stack Overflow',
-    reddit: 'Reddit',
-    pinterest: 'Pinterest',
-    startpage: 'Startpage',
-    ecosia: 'Ecosia',
-    qwant: 'Qwant',
-    yandex: 'Yandex',
-    baidu: 'Baidu',
-    ebay: 'eBay',
-    aliexpress: 'AliExpress',
-    etsy: 'Etsy',
-    scholar: 'Google Scholar',
-    archive: 'Archive.org',
-    wolframalpha: 'WolframAlpha',
-    spotify: 'Spotify',
-    soundcloud: 'SoundCloud',
-    vimeo: 'Vimeo',
-    linkedin: 'LinkedIn',
-    tiktok: 'TikTok',
-    perplexity: 'Perplexity AI',
-    kagi: 'Kagi',
-    searx: 'SearX',
-    you: 'You.com'
-  };
-
-  // Get all visible engines from config
-  Object.keys(configState.visibleEngines).forEach(engineId => {
-    if (configState.visibleEngines[engineId] === true) {
+  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+    if (configState.visibleEngines[id]) {
       const option = document.createElement('option');
-      option.value = engineId;
-      option.textContent = engineNames[engineId] || engineId.charAt(0).toUpperCase() + engineId.slice(1);
+      option.value = id;
+      option.textContent = engine.name;
       select.appendChild(option);
     }
   });
 
-  // If no engines are visible, add a default
   if (select.options.length === 0) {
     const option = document.createElement('option');
     option.value = 'google';
@@ -1064,16 +710,21 @@ function updateQuickSearchEngines() {
   }
 }
 
-// Perform quick search
+/**
+ * Ejecuta una busqueda directa: construye la URL y abre una nueva pestana.
+ * Si chrome.tabs no esta disponible (testing), usa window.open como respaldo.
+ *
+ * @param {string} query  - Termino de busqueda
+ * @param {string} engine - ID del motor seleccionado
+ */
 function performQuickSearch(query, engine) {
-  const url = buildSearchUrl(engine, query);
+  const url = buildSearchUrl(engine, query, false, configState);
   if (!url) {
-    showNotification('Motor de búsqueda no válido', 'error');
+    showNotification('Motor de busqueda no valido', 'error');
     return;
   }
 
   if (typeof chrome === 'undefined' || !chrome.tabs) {
-    // Fallback: open in new window
     window.open(url, '_blank');
     return;
   }
@@ -1081,19 +732,21 @@ function performQuickSearch(query, engine) {
   try {
     chrome.tabs.create({ url: url }, function() {
       if (chrome.runtime.lastError) {
-        console.error('Error creating tab:', chrome.runtime.lastError);
         window.open(url, '_blank');
       } else {
         window.close();
       }
     });
-  } catch (error) {
-    console.error('Error in performQuickSearch:', error);
+  } catch (_) {
     window.open(url, '_blank');
   }
 }
 
-// Setup mode toggle
+/**
+ * Configura el toggle entre modo "Convertir" y modo "Buscar".
+ * En modo Convertir se muestra el status y se detecta la pagina actual.
+ * En modo Buscar se muestra el input de busqueda rapida.
+ */
 function setupModeToggle() {
   const convertButton = document.getElementById('convertModeButton');
   const searchButton = document.getElementById('searchModeButton');
@@ -1116,25 +769,46 @@ function setupModeToggle() {
     quickSearchContainer.classList.add('visible');
     statusContainer.style.display = 'none';
 
-    // Focus search input
     setTimeout(() => {
       document.getElementById('quickSearchInput').focus();
     }, 100);
   });
 }
 
-// Setup copy buttons
+/* ============================================================================
+ * COPY BUTTONS (DELEGACION DE EVENTOS)
+ * ============================================================================
+ * Los botones de copiar se crean dinamicamente dentro de los botones de motor.
+ * En vez de registrar un listener por cada boton, se usa delegacion de eventos:
+ * un unico listener en el contenedor .search-buttons que detecta clicks en
+ * elementos con clase .copy-button usando e.target.closest().
+ * ============================================================================ */
+
+/**
+ * Registra un unico listener delegado para todos los botones de copiar.
+ * Cuando se hace click en un .copy-button, copia la URL convertida al portapapeles.
+ */
 function setupCopyButtons() {
-  document.querySelectorAll('.copy-button').forEach(button => {
-    button.addEventListener('click', function(e) {
-      e.stopPropagation();
-      const engine = this.getAttribute('data-engine');
-      copyConvertedUrl(engine, this);
-    });
+  const container = document.querySelector('.search-buttons');
+  if (!container) return;
+
+  container.addEventListener('click', function(e) {
+    const copyBtn = e.target.closest('.copy-button');
+    if (!copyBtn) return;
+
+    e.stopPropagation();
+    const engine = copyBtn.getAttribute('data-engine');
+    copyConvertedUrl(engine, copyBtn);
   });
 }
 
-// Copy converted URL to clipboard
+/**
+ * Copia al portapapeles la URL de la busqueda actual convertida al motor indicado.
+ * Muestra feedback visual (icono check) y una notificacion temporal.
+ *
+ * @param {string}      targetEngine - ID del motor de destino
+ * @param {HTMLElement}  button      - Elemento del boton de copiar (para feedback visual)
+ */
 function copyConvertedUrl(targetEngine, button) {
   if (typeof chrome === 'undefined' || !chrome.tabs) {
     showNotification('Chrome API no disponible', 'error');
@@ -1143,7 +817,7 @@ function copyConvertedUrl(targetEngine, button) {
 
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (chrome.runtime.lastError || !tabs || tabs.length === 0) {
-      showNotification('Error al obtener pestaña activa', 'error');
+      showNotification('Error al obtener pestana activa', 'error');
       return;
     }
 
@@ -1152,65 +826,50 @@ function copyConvertedUrl(targetEngine, button) {
 
     const query = extractQuery(currentUrl);
     if (!query) {
-      showNotification('No se detectó ninguna búsqueda', 'error');
+      showNotification('No se detecto ninguna busqueda', 'error');
       return;
     }
 
-    const isImageSearch = currentUrl.includes('tbm=isch') ||
-                         currentUrl.includes('/images') ||
-                         currentUrl.includes('iax=images');
-
-    const targetUrl = buildSearchUrl(targetEngine, query, isImageSearch);
+    const imgSearch = isImageSearch(currentUrl);
+    const targetUrl = buildSearchUrl(targetEngine, query, imgSearch, configState);
 
     if (targetUrl) {
       navigator.clipboard.writeText(targetUrl).then(() => {
         button.classList.add('copied');
-        button.innerHTML = '<i class="fas fa-check"></i>';
+        // Construir con DOM seguro
+        button.textContent = '';
+        const checkIcon = document.createElement('i');
+        checkIcon.className = 'fas fa-check';
+        button.appendChild(checkIcon);
 
         setTimeout(() => {
           button.classList.remove('copied');
-          button.innerHTML = '<i class="fas fa-copy"></i>';
+          button.textContent = '';
+          const copyIcon = document.createElement('i');
+          copyIcon.className = 'fas fa-copy';
+          button.appendChild(copyIcon);
         }, 2000);
 
         showNotification('URL copiada al portapapeles', 'success');
-      }).catch(err => {
+      }).catch(() => {
         showNotification('Error al copiar URL', 'error');
       });
     }
   });
 }
 
-/**
- * ============================================================================
+/* ============================================================================
  * ATAJOS DE TECLADO
- * ============================================================================
- */
+ * ============================================================================ */
 
 /**
- * Configura los atajos de teclado para navegación rápida
- *
- * @function setupKeyboardShortcuts
- * @returns {void}
- *
- * @description
- * Registra event listeners para atajos de teclado del popup:
- *
- * - Alt + 1-9: Convierte la búsqueda al motor en esa posición del grid
- * - Ctrl + K: Activa modo búsqueda y pone foco en campo de entrada
+ * Registra atajos de teclado:
+ * - Alt + 1-9: Convierte al motor en esa posicion
+ * - Ctrl + K: Activa modo busqueda
  * - ESC: Cierra el popup
- *
- * Los atajos Alt+1-9 consideran solo los motores visibles en el orden
- * personalizado por el usuario. Si hay menos de N motores visibles,
- * los atajos superiores no tienen efecto.
- *
- * @example
- * // Usuario tiene Google (1°), Brave (2°), DuckDuckGo (3°) visibles
- * // Presiona Alt+2 → Convierte a Brave
- * // Presiona Ctrl+K → Activa campo de búsqueda rápida
  */
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', function(e) {
-    // Alt + number keys (1-9) for quick engine switching
     if (e.altKey && !e.ctrlKey && !e.shiftKey) {
       const num = parseInt(e.key);
       if (num >= 1 && num <= 9) {
@@ -1224,13 +883,11 @@ function setupKeyboardShortcuts() {
       }
     }
 
-    // Ctrl + K to focus quick search
     if (e.ctrlKey && e.key === 'k') {
       e.preventDefault();
       document.getElementById('searchModeButton').click();
     }
 
-    // ESC to close popup
     if (e.key === 'Escape') {
       window.close();
     }
