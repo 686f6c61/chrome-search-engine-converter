@@ -1,8 +1,8 @@
-# Search Engine Converter v2.0
+# Search Engine Converter v2.1.0
 
 Extension para navegadores Chromium que convierte busquedas entre mas de 33 motores diferentes manteniendo los terminos exactos. Compatible con Chrome, Brave y Edge.
 
-[![Version](https://img.shields.io/badge/version-2.0-blue)](https://github.com/686f6c61/chrome-search-engine-converter)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Chrome](https://img.shields.io/badge/Chrome-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Brave](https://img.shields.io/badge/Brave-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Edge](https://img.shields.io/badge/Edge-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
@@ -44,7 +44,7 @@ Los 33 motores de busqueda soportados.
 - **Conversion instantanea**: detecta automaticamente el motor de busqueda actual y permite convertir a cualquier otro motor soportado
 - **33 motores**: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia, Twitter/X, GitHub, GitLab, Stack Overflow, Reddit, Pinterest, Startpage, Ecosia, Qwant, Yandex, Baidu, eBay, AliExpress, Etsy, Google Scholar, Internet Archive, Wolfram Alpha, Spotify, SoundCloud, Vimeo, LinkedIn, TikTok, Perplexity, Kagi, SearX, You.com
 - **Busqueda rapida**: escribe un termino y busca en cualquier motor sin necesidad de navegar a su pagina
-- **Menu contextual**: selecciona texto, clic derecho y busca en el motor que prefieras
+- **Menu contextual mejorado**: accion rapida con motor predeterminado + submenu completo para elegir cualquier motor
 - **Deteccion de imagenes**: si estas en busqueda de imagenes, la conversion mantiene el modo imagenes
 - **Copiar URL**: copia la URL convertida al portapapeles sin abrir nueva pestana
 - **Atajos de teclado**: Alt+1-9 conversion directa, Ctrl+K busqueda rapida, ESC cerrar popup
@@ -75,6 +75,9 @@ git clone https://github.com/686f6c61/chrome-search-engine-converter.git
 
 ```
 chrome-search-engine-converter/
+  .github/
+    workflows/
+      ci.yml                 # Checks automaticos (sintaxis + tests)
   extension/
     manifest.json           # Manifest V3, permisos minimos
     engines.js              # Registro centralizado de 33 motores (SSOT)
@@ -93,7 +96,9 @@ chrome-search-engine-converter/
       roboto-{400,500,700}.woff2  # Fuente Roboto
     images/
       icon{16,32,48,128,256}.png  # Iconos en todos los tamanos
-  store/                    # Assets para Chrome Web Store
+  tests/
+    engines.smoke.test.cjs  # Pruebas smoke de funciones criticas
+  package.json              # Scripts de validacion local
   LICENSE                   # MIT License
   README.md
 ```

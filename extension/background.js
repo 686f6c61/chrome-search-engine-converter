@@ -36,26 +36,29 @@ importScripts('engines.js');
 /**
  * Configuracion en memoria del service worker.
  * Se carga desde chrome.storage.local en cada inicio.
- * Solo se usan los campos de dominio para construir URLs.
+ * Se usa para dominios configurables y accion rapida de menu contextual.
  */
 let config = {
   amazonDomain: 'es',
   youtubeDomain: 'com',
-  defaultSearchEngine: 'googleButton'
+  defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID
 };
+
+const CONTEXT_MENU_DEFAULT_ID = 'search_default';
+const CONTEXT_MENU_SEPARATOR_ID = 'search_separator';
+const CONTEXT_MENU_GROUP_ID = 'searchEngineConverter';
+const CONTEXT_MENU_ENGINE_PREFIX = 'engine_';
 
 /* --- Eventos del ciclo de vida del service worker --- */
 
 /** Al instalar o actualizar la extension: recrear menus y cargar config */
 chrome.runtime.onInstalled.addListener(() => {
-  createContextMenus();
-  loadConfig();
+  loadConfig(createContextMenus);
 });
 
 /** Al iniciar Chrome: recrear menus y cargar config (el SW pudo haber muerto) */
 chrome.runtime.onStartup.addListener(() => {
-  createContextMenus();
-  loadConfig();
+  loadConfig(createContextMenus);
 });
 
 /* --- Funciones principales --- */
@@ -65,27 +68,36 @@ chrome.runtime.onStartup.addListener(() => {
  * Valida los dominios contra las whitelists de engines.js para evitar
  * que datos corruptos o manipulados generen URLs a dominios no autorizados.
  */
-function loadConfig() {
+function loadConfig(onComplete) {
   chrome.storage.local.get(STORAGE_KEY, (data) => {
     if (data[STORAGE_KEY]) {
       try {
         const savedConfig = JSON.parse(data[STORAGE_KEY]);
+        const nextConfig = { ...config };
 
-        /* Validar dominio de Amazon contra whitelist */
-        if (savedConfig.amazonDomain && !VALID_AMAZON_DOMAINS.includes(savedConfig.amazonDomain)) {
-          savedConfig.amazonDomain = 'es';
-        }
-        /* Validar dominio de YouTube contra whitelist */
-        if (savedConfig.youtubeDomain && !VALID_YOUTUBE_DOMAINS.includes(savedConfig.youtubeDomain)) {
-          savedConfig.youtubeDomain = 'com';
+        if (validateDomain('amazon', savedConfig.amazonDomain)) {
+          nextConfig.amazonDomain = savedConfig.amazonDomain;
         }
 
-        config = { ...config, ...savedConfig };
+        if (validateDomain('youtube', savedConfig.youtubeDomain)) {
+          nextConfig.youtubeDomain = savedConfig.youtubeDomain;
+        }
+
+        nextConfig.defaultSearchEngine = normalizeDefaultSearchEngine(savedConfig.defaultSearchEngine);
+        config = nextConfig;
       } catch (_) {
         /* JSON corrupto en storage: se mantienen los valores por defecto */
       }
     }
+
+    if (typeof onComplete === 'function') {
+      onComplete();
+    }
   });
+}
+
+function getDefaultEngineId() {
+  return normalizeDefaultSearchEngine(config.defaultSearchEngine);
 }
 
 /**
@@ -97,9 +109,25 @@ function loadConfig() {
  */
 function createContextMenus() {
   chrome.contextMenus.removeAll(() => {
-    /* Menu padre: aparece al seleccionar texto y hacer clic derecho */
+    const defaultEngineId = getDefaultEngineId();
+    const defaultEngine = SEARCH_ENGINES[defaultEngineId] || SEARCH_ENGINES[DEFAULT_SEARCH_ENGINE_ID];
+
+    /* Accion rapida: usa el motor predeterminado del usuario */
     chrome.contextMenus.create({
-      id: 'searchEngineConverter',
+      id: CONTEXT_MENU_DEFAULT_ID,
+      title: `Buscar "%s" en ${defaultEngine.name}`,
+      contexts: ['selection']
+    });
+
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_SEPARATOR_ID,
+      type: 'separator',
+      contexts: ['selection']
+    });
+
+    /* Menu padre: submenu con todos los motores habilitados para contexto */
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_GROUP_ID,
       title: 'Buscar "%s" con...',
       contexts: ['selection']
     });
@@ -110,8 +138,8 @@ function createContextMenus() {
 
     menuEngines.forEach(engine => {
       chrome.contextMenus.create({
-        id: `search_${engine.id}`,
-        parentId: 'searchEngineConverter',
+        id: `${CONTEXT_MENU_ENGINE_PREFIX}${engine.id}`,
+        parentId: CONTEXT_MENU_GROUP_ID,
         title: engine.name,
         contexts: ['selection']
       });
@@ -123,24 +151,49 @@ function createContextMenus() {
 
 /**
  * Cuando el usuario selecciona un motor del menu contextual:
- *   1. Extrae el ID del motor desde el menuItemId (formato: "search_<engineId>")
+ *   1. Detecta si clico accion rapida (motor por defecto) o submenu (engine_<id>)
  *   2. Construye la URL con buildSearchUrl() de engines.js
  *   3. Abre una nueva pestana con la busqueda
  */
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.selectionText && info.menuItemId.startsWith('search_')) {
-    const engineId = info.menuItemId.replace('search_', '');
-    const query = info.selectionText.trim();
-    const url = buildSearchUrl(engineId, query, false, config);
-
-    if (url) {
-      chrome.tabs.create({ url: url });
-    }
+chrome.contextMenus.onClicked.addListener((info) => {
+  if (!info.selectionText || typeof info.menuItemId !== 'string') {
+    return;
   }
+
+  const query = info.selectionText.trim();
+  if (!query) {
+    return;
+  }
+
+  let engineId = null;
+
+  if (info.menuItemId === CONTEXT_MENU_DEFAULT_ID) {
+    engineId = getDefaultEngineId();
+  } else if (info.menuItemId.startsWith(CONTEXT_MENU_ENGINE_PREFIX)) {
+    engineId = info.menuItemId.slice(CONTEXT_MENU_ENGINE_PREFIX.length);
+  }
+
+  if (!engineId) {
+    return;
+  }
+
+  const url = buildSearchUrl(engineId, query, false, config);
+
+  if (url) {
+    chrome.tabs.create({ url: url });
+  }
+});
+
+/* Refrescar config/menus al cambiar preferencias en popup */
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local' || !changes[STORAGE_KEY]) {
+    return;
+  }
+
+  loadConfig(createContextMenus);
 });
 
 /* --- Inicializacion inmediata --- */
 /* Necesario porque el SW puede despertarse por un evento contextMenu
    sin que se dispare onInstalled ni onStartup */
-createContextMenus();
-loadConfig();
+loadConfig(createContextMenus);

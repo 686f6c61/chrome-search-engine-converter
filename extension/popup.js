@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Search Engine Converter v2.0 - Popup Controller
+ * Search Engine Converter v2.1.0 - Popup Controller
  * ============================================================================
  *
  * @file        popup.js
@@ -34,19 +34,16 @@
  *
  * @property {string}  amazonDomain       - Dominio de Amazon ('es', 'com', etc.)
  * @property {string}  youtubeDomain      - Dominio de YouTube ('com', 'es')
- * @property {string}  defaultSearchEngine - buttonId del motor por defecto
+ * @property {string}  defaultSearchEngine - engineId del motor por defecto
  * @property {Array}   buttonOrder        - Orden personalizado de botones (buttonIds)
  * @property {Object}  visibleEngines     - Mapa {engineId: boolean} de visibilidad
  */
 let configState = {
   amazonDomain: 'es',
   youtubeDomain: 'com',
-  defaultSearchEngine: 'googleButton',
+  defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID,
   buttonOrder: [],
-  /* Genera el mapa de visibilidad desde SEARCH_ENGINES.visibleByDefault */
-  visibleEngines: Object.fromEntries(
-    Object.entries(SEARCH_ENGINES).map(([id, engine]) => [id, engine.visibleByDefault])
-  )
+  visibleEngines: { ...DEFAULT_CONFIG }
 };
 
 /* ============================================================================
@@ -156,7 +153,7 @@ function renderDefaultEngineOptions() {
 
   Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
     const option = document.createElement('option');
-    option.value = engine.buttonId;
+    option.value = id;
     option.textContent = engine.name;
     select.appendChild(option);
   });
@@ -168,7 +165,7 @@ function renderDefaultEngineOptions() {
 
 /**
  * Actualiza el mensaje de estado en el header del popup.
- * Usa innerHTML porque necesita iconos Font Awesome dentro del elemento.
+ * Construye el contenido con APIs DOM seguras (icono + texto).
  *
  * @param {string} message - Mensaje a mostrar (texto plano, sin HTML externo)
  * @param {string} [type='info'] - Tipo: 'info', 'success', 'error', 'warning'
@@ -279,22 +276,76 @@ async function loadConfiguration() {
         if (data[STORAGE_KEY]) {
           try {
             const savedConfig = JSON.parse(data[STORAGE_KEY]);
-            Object.keys(savedConfig).forEach(key => {
-              if (configState.hasOwnProperty(key)) {
-                configState[key] = savedConfig[key];
-              }
-            });
-            applyConfigToUI();
+            applySavedConfiguration(savedConfig);
           } catch (_) {
             // Configuracion corrupta, se usa la por defecto
           }
         }
+
+        applyConfigToUI();
         resolve();
       });
     } catch (_) {
       resolve();
     }
   });
+}
+
+function sanitizeVisibleEngines(visibleEngines) {
+  const safeVisibleEngines = { ...DEFAULT_CONFIG };
+
+  if (!visibleEngines || typeof visibleEngines !== 'object') {
+    return safeVisibleEngines;
+  }
+
+  Object.keys(safeVisibleEngines).forEach((engineId) => {
+    if (typeof visibleEngines[engineId] === 'boolean') {
+      safeVisibleEngines[engineId] = visibleEngines[engineId];
+    }
+  });
+
+  return safeVisibleEngines;
+}
+
+function sanitizeButtonOrder(buttonOrder) {
+  if (!Array.isArray(buttonOrder)) {
+    return [];
+  }
+
+  const validButtonIds = new Set(
+    Object.values(SEARCH_ENGINES).map(engine => engine.buttonId)
+  );
+  const safeOrder = [];
+
+  buttonOrder.forEach((buttonId) => {
+    if (
+      typeof buttonId === 'string' &&
+      validButtonIds.has(buttonId) &&
+      !safeOrder.includes(buttonId)
+    ) {
+      safeOrder.push(buttonId);
+    }
+  });
+
+  return safeOrder;
+}
+
+function applySavedConfiguration(savedConfig) {
+  if (!savedConfig || typeof savedConfig !== 'object') {
+    return;
+  }
+
+  if (validateDomain('amazon', savedConfig.amazonDomain)) {
+    configState.amazonDomain = savedConfig.amazonDomain;
+  }
+
+  if (validateDomain('youtube', savedConfig.youtubeDomain)) {
+    configState.youtubeDomain = savedConfig.youtubeDomain;
+  }
+
+  configState.defaultSearchEngine = normalizeDefaultSearchEngine(savedConfig.defaultSearchEngine);
+  configState.visibleEngines = sanitizeVisibleEngines(savedConfig.visibleEngines);
+  configState.buttonOrder = sanitizeButtonOrder(savedConfig.buttonOrder);
 }
 
 /**
@@ -314,7 +365,7 @@ function applyConfigToUI() {
 
   const defaultSearchEngineSelect = document.getElementById('defaultSearchEngine');
   if (defaultSearchEngineSelect) {
-    defaultSearchEngineSelect.value = configState.defaultSearchEngine || 'googleButton';
+    defaultSearchEngineSelect.value = configState.defaultSearchEngine || DEFAULT_SEARCH_ENGINE_ID;
   }
 
   Object.keys(configState.visibleEngines).forEach(engine => {
@@ -393,7 +444,7 @@ function setupEventListeners() {
   const amazonDomain = document.getElementById('amazonDomain');
   if (amazonDomain) {
     amazonDomain.addEventListener('change', function() {
-      configState.amazonDomain = this.value;
+      configState.amazonDomain = validateDomain('amazon', this.value) ? this.value : 'es';
       saveConfiguration();
     });
   }
@@ -401,7 +452,7 @@ function setupEventListeners() {
   const youtubeDomain = document.getElementById('youtubeDomain');
   if (youtubeDomain) {
     youtubeDomain.addEventListener('change', function() {
-      configState.youtubeDomain = this.value;
+      configState.youtubeDomain = validateDomain('youtube', this.value) ? this.value : 'com';
       saveConfiguration();
     });
   }
@@ -409,7 +460,7 @@ function setupEventListeners() {
   const defaultSearchEngine = document.getElementById('defaultSearchEngine');
   if (defaultSearchEngine) {
     defaultSearchEngine.addEventListener('change', function() {
-      configState.defaultSearchEngine = this.value;
+      configState.defaultSearchEngine = normalizeDefaultSearchEngine(this.value);
       saveConfiguration();
     });
   }
@@ -578,9 +629,8 @@ function initializeButtonOrdering() {
 }
 
 /**
- * Actualiza la lista de orden de botones. Usa innerHTML para los items
- * porque necesita iconos Font Awesome con estilos inline (contenido
- * controlado desde SEARCH_ENGINES, sin entrada de usuario).
+ * Actualiza la lista de orden de botones.
+ * Los items se construyen con createElement/textContent para evitar sinks HTML.
  */
 function updateOrderList() {
   const orderList = document.getElementById('buttonOrderList');
@@ -591,10 +641,9 @@ function updateOrderList() {
     orderList.removeChild(orderList.firstChild);
   }
 
-  const visibleEngines = Object.keys(configState.visibleEngines)
-    .filter(id => configState.visibleEngines[id]);
+  const orderedVisibleEngineIds = getVisibleEngineIdsInOrder();
 
-  visibleEngines.forEach(id => {
+  orderedVisibleEngineIds.forEach(id => {
     const engine = SEARCH_ENGINES[id];
     if (!engine) return;
 
@@ -617,19 +666,56 @@ function updateOrderList() {
   });
 }
 
+function getVisibleEngineIdsInOrder() {
+  const buttonIdToEngineId = new Map(
+    Object.entries(SEARCH_ENGINES).map(([id, engine]) => [engine.buttonId, id])
+  );
+
+  const orderedVisibleEngineIds = [];
+  const addedEngineIds = new Set();
+
+  configState.buttonOrder.forEach((buttonId) => {
+    const engineId = buttonIdToEngineId.get(buttonId);
+    if (engineId && configState.visibleEngines[engineId] && !addedEngineIds.has(engineId)) {
+      orderedVisibleEngineIds.push(engineId);
+      addedEngineIds.add(engineId);
+    }
+  });
+
+  Object.keys(configState.visibleEngines).forEach((engineId) => {
+    if (configState.visibleEngines[engineId] && !addedEngineIds.has(engineId)) {
+      orderedVisibleEngineIds.push(engineId);
+      addedEngineIds.add(engineId);
+    }
+  });
+
+  return orderedVisibleEngineIds;
+}
+
 /**
  * Reordena los botones en el DOM segun configState.buttonOrder.
  * Usa appendChild() que mueve el elemento existente (no lo clona).
  */
 function applyButtonOrder() {
   const searchButtons = document.querySelector('.search-buttons');
-  if (!searchButtons || !configState.buttonOrder.length) return;
+  if (!searchButtons) return;
 
   const orderedButtons = [];
+  const appendedButtonIds = new Set();
+
   configState.buttonOrder.forEach(buttonId => {
     const button = document.getElementById(buttonId);
     if (button && button.style.display !== 'none') {
       orderedButtons.push(button);
+      appendedButtonIds.add(buttonId);
+    }
+  });
+
+  Object.values(SEARCH_ENGINES).forEach((engine) => {
+    const button = document.getElementById(engine.buttonId);
+    if (button && button.style.display !== 'none' && !appendedButtonIds.has(engine.buttonId)) {
+      orderedButtons.push(button);
+      appendedButtonIds.add(engine.buttonId);
     }
   });
 

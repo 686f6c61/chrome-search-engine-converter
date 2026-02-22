@@ -37,6 +37,15 @@ const VALID_AMAZON_DOMAINS = ['es', 'com', 'co.uk', 'de', 'fr', 'it'];
 /** Dominios permitidos para YouTube */
 const VALID_YOUTUBE_DOMAINS = ['com', 'es'];
 
+/** Motor por defecto para acciones de menu contextual y configuracion inicial */
+const DEFAULT_SEARCH_ENGINE_ID = 'google';
+
+/** Dominios por defecto para cada motor con dominio configurable */
+const DOMAIN_DEFAULTS = {
+  amazon: 'es',
+  youtube: 'com'
+};
+
 /**
  * Registro de motores de busqueda.
  *
@@ -53,7 +62,7 @@ const VALID_YOUTUBE_DOMAINS = ['com', 'es'];
  * @property {boolean} visibleByDefault  - Si el boton aparece visible al instalar la extension
  * @property {boolean} showInContextMenu - Si aparece en el menu contextual (clic derecho)
  * @property {boolean} hasCopyButton     - Si muestra boton para copiar la URL convertida
- * @property {string}  [usesDomain]      - (Opcional) 'amazon' si la URL usa dominio configurable
+ * @property {string}  [usesDomain]      - (Opcional) 'amazon' o 'youtube' para dominio configurable
  */
 const SEARCH_ENGINES = {
   google: {
@@ -133,13 +142,14 @@ const SEARCH_ENGINES = {
     name: 'YouTube',
     icon: 'fab fa-youtube',
     color: '#FF0000',
-    searchUrl: 'https://www.youtube.com/results?search_query={query}',
+    searchUrl: 'https://www.youtube.{domain}/results?search_query={query}',
     imageSearchUrl: null,
     queryParam: 'search_query',
-    detectionPattern: 'youtube.com/results',
+    detectionPattern: 'youtube.',
     visibleByDefault: true,
     showInContextMenu: true,
-    hasCopyButton: false
+    hasCopyButton: false,
+    usesDomain: 'youtube'
   },
   wikipedia: {
     id: 'wikipedia',
@@ -572,6 +582,31 @@ const DEFAULT_CONFIG = Object.fromEntries(
   Object.entries(SEARCH_ENGINES).map(([id, engine]) => [id, engine.visibleByDefault])
 );
 
+/**
+ * Normaliza un valor de motor por defecto guardado en storage.
+ * Soporta formato nuevo (engineId) y legado (buttonId).
+ *
+ * @param {string} value - engineId o buttonId
+ * @returns {string} engineId valido
+ */
+function normalizeDefaultSearchEngine(value) {
+  if (typeof value !== 'string' || !value) {
+    return DEFAULT_SEARCH_ENGINE_ID;
+  }
+
+  if (SEARCH_ENGINES[value]) {
+    return value;
+  }
+
+  for (const [id, engine] of Object.entries(SEARCH_ENGINES)) {
+    if (engine.buttonId === value) {
+      return id;
+    }
+  }
+
+  return DEFAULT_SEARCH_ENGINE_ID;
+}
+
 /* ============================================================================
  * FUNCIONES COMPARTIDAS (usadas por popup.js y background.js)
  * ============================================================================ */
@@ -603,13 +638,38 @@ function buildSearchUrl(engineId, query, isImageSearch, domainConfig) {
 
   let url = template.replace('{query}', encodedQuery);
 
-  /* Para Amazon, reemplazar {domain} con el dominio del usuario (validado contra whitelist) */
-  if (engine.usesDomain === 'amazon' && domainConfig) {
-    const domain = domainConfig.amazonDomain || 'es';
-    url = url.replace('{domain}', domain);
+  /* Motores con dominio configurable (Amazon, YouTube, etc.) */
+  if (engine.usesDomain) {
+    const domainConfigKey = engine.usesDomain + 'Domain';
+    const requestedDomain = domainConfig && typeof domainConfig[domainConfigKey] === 'string'
+      ? domainConfig[domainConfigKey]
+      : '';
+    const fallbackDomain = DOMAIN_DEFAULTS[engine.usesDomain] || '';
+    const safeDomain = validateDomain(engine.usesDomain, requestedDomain)
+      ? requestedDomain
+      : fallbackDomain;
+
+    if (safeDomain) {
+      url = url.replace('{domain}', safeDomain);
+    }
   }
 
   return url;
+}
+
+/**
+ * Decodifica un componente URI de forma segura.
+ * Si el valor esta corrupto o mal codificado, devuelve null.
+ *
+ * @param {string} value - valor codificado
+ * @returns {string|null}
+ */
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
@@ -627,13 +687,16 @@ function extractQuery(url) {
   /* Caso especial: Spotify usa path en vez de query param (/search/<termino>) */
   const spotifyMatch = url.match(/open\.spotify\.com\/search\/(.+)/);
   if (spotifyMatch) {
-    return decodeURIComponent(spotifyMatch[1]);
+    return safeDecodeURIComponent(spotifyMatch[1]);
   }
 
   for (const pattern of QUERY_PATTERNS) {
     const match = url.match(pattern);
     if (match) {
-      return decodeURIComponent(match[1].replace(/\+/g, ' '));
+      const decodedQuery = safeDecodeURIComponent(match[1].replace(/\+/g, ' '));
+      if (decodedQuery !== null) {
+        return decodedQuery;
+      }
     }
   }
   return null;
@@ -651,6 +714,13 @@ function extractQuery(url) {
  */
 function detectEngine(url) {
   for (const [id, engine] of Object.entries(SEARCH_ENGINES)) {
+    if (id === 'youtube') {
+      if (/https?:\/\/(?:www\.)?youtube\.[^/]+\/results(?:[/?#]|$)/.test(url)) {
+        return id;
+      }
+      continue;
+    }
+
     if (url.includes(engine.detectionPattern)) {
       return id;
     }
