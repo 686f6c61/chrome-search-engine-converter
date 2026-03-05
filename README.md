@@ -1,6 +1,6 @@
 # Search Engine Converter v2.1.0
 
-Extension para navegadores Chromium que convierte busquedas entre mas de 33 motores diferentes manteniendo los terminos exactos. Compatible con Chrome, Brave y Edge.
+Extensión para navegadores Chromium que convierte búsquedas entre más de 33 motores diferentes manteniendo los términos exactos. Compatible con Chrome, Brave y Edge.
 
 [![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Chrome](https://img.shields.io/badge/Chrome-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
@@ -15,17 +15,17 @@ Extension para navegadores Chromium que convierte busquedas entre mas de 33 moto
 ### Interfaz principal
 ![Popup principal](assets/screenshot_1_main.png)
 
-Vista principal con motor detectado y botones de conversion en grid de 2 columnas.
+Vista principal con motor detectado y botones de conversión en grid de 2 columnas.
 
-### Busqueda rapida
-![Busqueda rapida](assets/screenshot_2_search.png)
+### Búsqueda rápida
+![Búsqueda rápida](assets/screenshot_2_search.png)
 
-Modo busqueda con campo de texto y selector de motor para buscar directamente.
+Modo búsqueda con campo de texto y selector de motor para buscar directamente.
 
-### Configuracion
-![Configuracion](assets/screenshot_3_config.png)
+### Configuración
+![Configuración](assets/screenshot_3_config.png)
 
-Panel de configuracion con dominios regionales, visibilidad de motores y checkboxes individuales.
+Panel de configuración con dominios regionales, visibilidad de motores y checkboxes individuales.
 
 ### Orden personalizable
 ![Orden de botones](assets/screenshot_4_order.png)
@@ -35,26 +35,27 @@ Drag-and-drop para reordenar los motores en el popup.
 ### Todos los motores
 ![33 motores](assets/screenshot_5_all_engines.png)
 
-Los 33 motores de busqueda soportados.
+Los 33 motores de búsqueda soportados.
 
 ---
 
 ## Funcionalidades
 
-- **Conversion instantanea**: detecta automaticamente el motor de busqueda actual y permite convertir a cualquier otro motor soportado
-- **33 motores**: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia, Twitter/X, GitHub, GitLab, Stack Overflow, Reddit, Pinterest, Startpage, Ecosia, Qwant, Yandex, Baidu, eBay, AliExpress, Etsy, Google Scholar, Internet Archive, Wolfram Alpha, Spotify, SoundCloud, Vimeo, LinkedIn, TikTok, Perplexity, Kagi, SearX, You.com
-- **Busqueda rapida**: escribe un termino y busca en cualquier motor sin necesidad de navegar a su pagina
-- **Menu contextual mejorado**: accion rapida con motor predeterminado + submenu completo para elegir cualquier motor
-- **Deteccion de imagenes**: si estas en busqueda de imagenes, la conversion mantiene el modo imagenes
-- **Copiar URL**: copia la URL convertida al portapapeles sin abrir nueva pestana
-- **Atajos de teclado**: Alt+1-9 conversion directa, Ctrl+K busqueda rapida, ESC cerrar popup
-- **Personalizacion**: motores visibles, orden drag-and-drop, dominios regionales (Amazon, YouTube)
+- **Conversión instantánea**: detecta automáticamente el motor de búsqueda actual y permite convertir a cualquier otro motor soportado
+- **33 motores**: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia, X (Twitter), GitHub, GitLab, Stack Overflow, Reddit, Pinterest, Startpage, Ecosia, Qwant, Yandex, Baidu, eBay, AliExpress, Etsy, Google Scholar, Internet Archive, Wolfram Alpha, Spotify, SoundCloud, Vimeo, LinkedIn, TikTok, Perplexity, Kagi, SearXNG, You.com
+- **Búsqueda rápida**: escribe un término y busca en cualquier motor sin necesidad de navegar a su página
+- **Menú contextual mejorado**: acción rápida con motor predeterminado + submenú completo para elegir cualquier motor
+- **Detección de imágenes**: si estás en búsqueda de imágenes, la conversión mantiene el modo imágenes
+- **Copiar URL**: copia la URL convertida al portapapeles sin abrir nueva pestaña
+- **Atajos de teclado**: Alt+1-9 conversión directa, Ctrl+K búsqueda rápida, ESC cerrar popup
+- **Personalización**: motores visibles, orden drag-and-drop, dominios regionales (Amazon, YouTube)
+- **Accesibilidad**: navegación completa por teclado, ARIA labels, soporte para lectores de pantalla, respeto a `prefers-reduced-motion`
 
 ---
 
-## Instalacion
+## Instalación
 
-### Desde codigo fuente (modo desarrollador)
+### Desde código fuente (modo desarrollador)
 
 ```bash
 git clone https://github.com/686f6c61/chrome-search-engine-converter.git
@@ -62,12 +63,22 @@ git clone https://github.com/686f6c61/chrome-search-engine-converter.git
 
 1. Abrir `chrome://extensions/` (o `brave://extensions/` o `edge://extensions/`)
 2. Activar "Modo de desarrollador"
-3. Pulsar "Cargar extension sin empaquetar"
+3. Pulsar "Cargar extensión sin empaquetar"
 4. Seleccionar la carpeta `extension/`
 
 ### Desde Chrome Web Store
 
-*(Pendiente de publicacion)*
+*(Pendiente de publicación)*
+
+---
+
+## Tests
+
+```bash
+npm test
+```
+
+Ejecuta los tests con el runner nativo de Node.js (`node:test`). Los tests verifican el registro de motores, funciones de búsqueda, validación de dominios y detección de motores.
 
 ---
 
@@ -77,54 +88,54 @@ git clone https://github.com/686f6c61/chrome-search-engine-converter.git
 chrome-search-engine-converter/
   .github/
     workflows/
-      ci.yml                 # Checks automaticos (sintaxis + tests)
+      ci.yml                 # Checks automáticos (sintaxis + tests)
   extension/
-    manifest.json           # Manifest V3, permisos minimos
+    manifest.json           # Manifest V3, permisos mínimos
     engines.js              # Registro centralizado de 33 motores (SSOT)
-    background.js           # Service Worker (menu contextual)
-    popup.html              # Interfaz del popup (esqueleto minimo)
-    popup.js                # Controlador del popup (genera HTML dinamico)
+    background.js           # Service Worker (menú contextual)
+    popup.html              # Interfaz del popup (esqueleto mínimo)
+    popup.js                # Controlador del popup (genera HTML dinámico)
     popup.css               # Estilos del popup
-    Sortable.js             # Libreria drag-and-drop (local, sin minificar)
-    privacy-policy.html     # Politica de privacidad
+    Sortable.js             # Librería drag-and-drop (local)
+    privacy-policy.html     # Política de privacidad
     css/
       fontawesome.min.css   # Font Awesome 6 (local)
       fonts.css             # Declaraciones @font-face
     fonts/
-      fa-solid-900.woff2    # Iconos solidos
+      fa-solid-900.woff2    # Iconos sólidos
       fa-brands-400.woff2   # Iconos de marcas
       roboto-{400,500,700}.woff2  # Fuente Roboto
     images/
-      icon{16,32,48,128,256}.png  # Iconos en todos los tamanos
+      icon{16,32,48,128,256}.png  # Iconos en todos los tamaños
   tests/
-    engines.smoke.test.cjs  # Pruebas smoke de funciones criticas
-  package.json              # Scripts de validacion local
+    engines.smoke.test.cjs  # Pruebas de funciones críticas
+  package.json              # Scripts de validación local
   LICENSE                   # MIT License
   README.md
 ```
 
 ### Arquitectura
 
-- **engines.js** es la unica fuente de verdad (SSOT) para todos los motores. Define configuracion, URLs, patrones de deteccion y funciones de busqueda/extraccion. Lo consumen tanto `background.js` como `popup.js` via `importScripts()` y `<script>`.
-- **popup.js** genera todo el HTML dinamicamente desde `SEARCH_ENGINES` - botones, checkboxes, selects, lista de orden.
-- **background.js** crea los menus contextuales y gestiona las busquedas desde el clic derecho.
-- **Cero dependencias externas**: fuentes, iconos y Sortable.js estan empaquetados localmente. No se carga ningun recurso remoto.
+- **engines.js** es la única fuente de verdad (SSOT) para todos los motores. Define configuración, URLs, patrones de detección y funciones de búsqueda/extracción. Lo consumen tanto `background.js` como `popup.js` mediante `importScripts()` y `<script>`.
+- **popup.js** genera todo el HTML dinámicamente desde `SEARCH_ENGINES` - botones, checkboxes, selects, lista de orden.
+- **background.js** crea los menús contextuales y gestiona las búsquedas desde el clic derecho.
+- **Cero dependencias externas**: fuentes, iconos y Sortable.js están empaquetados localmente. No se carga ningún recurso remoto.
 
 ---
 
 ## Privacidad y seguridad
 
-- **Sin recopilacion de datos**: no se envia informacion a servidores externos
-- **100% local**: toda la logica se ejecuta en el navegador
-- **Sin analiticas**: no se usa Google Analytics ni ningun servicio de telemetria
-- **Codigo abierto**: todo el codigo esta disponible para auditoria
+- **Sin recopilación de datos**: no se envía información a servidores externos
+- **100% local**: toda la lógica se ejecuta en el navegador
+- **Sin analíticas**: no se usa Google Analytics ni ningún servicio de telemetría
+- **Código abierto**: todo el código está disponible para auditoría
 
-### Permisos (3 permisos minimos)
+### Permisos (3 permisos mínimos)
 
 | Permiso | Uso |
 |---------|-----|
-| `activeTab` | Lee la URL de la pestana activa para detectar el motor y extraer el termino de busqueda |
-| `contextMenus` | Crea el menu de clic derecho para buscar texto seleccionado |
+| `activeTab` | Lee la URL de la pestaña activa para detectar el motor y extraer el término de búsqueda |
+| `contextMenus` | Crea el menú de clic derecho para buscar texto seleccionado |
 | `storage` | Guarda preferencias del usuario localmente |
 
 ### Content Security Policy
@@ -141,15 +152,16 @@ Solo se permite cargar recursos locales (`'self'`). Sin `unsafe-inline`, sin CDN
 
 ## Motores soportados
 
-| Categoria | Motores |
+| Categoría | Motores |
 |-----------|---------|
 | Generalistas | Google, Brave, DuckDuckGo, Bing, Startpage, Ecosia, Qwant, Yandex, Baidu |
-| IA | Perplexity, Kagi, SearX, You.com |
-| Redes sociales | Twitter/X, Reddit, LinkedIn, Pinterest, TikTok |
+| IA | Perplexity, You.com |
+| Privacidad | Kagi, SearXNG, Startpage |
+| Redes sociales | X (Twitter), Reddit, LinkedIn, Pinterest, TikTok |
 | Multimedia | YouTube, Spotify, SoundCloud, Vimeo |
 | Comercio | Amazon, eBay, AliExpress, Etsy |
 | Desarrollo | GitHub, GitLab, Stack Overflow |
-| Academico | Wikipedia, Google Scholar, Internet Archive, Wolfram Alpha |
+| Académico | Wikipedia, Google Scholar, Internet Archive, Wolfram Alpha |
 
 ---
 
@@ -157,4 +169,4 @@ Solo se permite cargar recursos locales (`'self'`). Sin `unsafe-inline`, sin CDN
 
 [MIT License](LICENSE) - [@686f6c61](https://github.com/686f6c61)
 
-Politica de privacidad: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
+Política de privacidad: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)

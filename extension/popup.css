@@ -529,6 +529,29 @@ body {
   text-decoration: underline;
 }
 
+/* Focus visible styles for keyboard accessibility (WCAG 2.4.7) */
+.search-button:focus-visible,
+.mode-button:focus-visible,
+.config-button:focus-visible,
+.config-save-button:focus-visible,
+.clear-button:focus-visible,
+.copy-button:focus-visible {
+  outline: 2px solid #4285F4;
+  outline-offset: 2px;
+}
+
+.quick-engine-select:focus-visible,
+#quickSearchInput:focus-visible,
+.config-item select:focus-visible {
+  outline: 2px solid #4285F4;
+  outline-offset: 1px;
+}
+
+/* Make copy button accessible via keyboard (not just hover) */
+.search-button:focus-within .copy-button {
+  opacity: 1;
+}
+
 /* Animation for highlighting interactive elements */
 .pulse {
   animation: pulse-animation 1s infinite;
@@ -543,5 +566,29 @@ body {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(33, 33, 33, 0);
+  }
+}
+
+/* Respect user motion preferences (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+
+  .search-button::before {
+    transition: none;
+  }
+
+  .search-button,
+  .mode-button,
+  .config-button,
+  .config-save-button,
+  .status-container,
+  .copy-button,
+  .clear-button,
+  #quickSearchInput,
+  .quick-engine-select,
+  .button-order-item {
+    transition: none;
   }
 }

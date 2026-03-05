@@ -39,8 +39,8 @@ importScripts('engines.js');
  * Se usa para dominios configurables y accion rapida de menu contextual.
  */
 let config = {
-  amazonDomain: 'es',
-  youtubeDomain: 'com',
+  amazonDomain: DOMAIN_DEFAULTS.amazon,
+  youtubeDomain: DOMAIN_DEFAULTS.youtube,
   defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID
 };
 

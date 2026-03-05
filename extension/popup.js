@@ -38,9 +38,19 @@
  * @property {Array}   buttonOrder        - Orden personalizado de botones (buttonIds)
  * @property {Object}  visibleEngines     - Mapa {engineId: boolean} de visibilidad
  */
+/* Constantes de tiempos (ms) */
+const PULSE_DURATION = 2000;
+const COPY_FEEDBACK_DURATION = 2000;
+const NOTIFICATION_DISPLAY_DURATION = 3000;
+const NOTIFICATION_FADE_DURATION = 300;
+const DEBOUNCE_SAVE_DELAY = 300;
+
+/** Timer para debounce de saveConfiguration */
+let _saveDebounceTimer = null;
+
 let configState = {
-  amazonDomain: 'es',
-  youtubeDomain: 'com',
+  amazonDomain: DOMAIN_DEFAULTS.amazon,
+  youtubeDomain: DOMAIN_DEFAULTS.youtube,
   defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID,
   buttonOrder: [],
   visibleEngines: { ...DEFAULT_CONFIG }
@@ -102,16 +112,19 @@ function renderEngineButtons() {
     const icon = document.createElement('i');
     icon.className = engine.icon;
     icon.style.color = engine.color;
+    icon.setAttribute('aria-hidden', 'true');
     button.appendChild(icon);
     button.appendChild(document.createTextNode(' ' + engine.name));
+    button.setAttribute('aria-label', 'Buscar en ' + engine.name);
 
     if (engine.hasCopyButton) {
       const copyBtn = document.createElement('button');
       copyBtn.className = 'copy-button';
       copyBtn.setAttribute('data-engine', engine.id);
-      copyBtn.setAttribute('aria-label', 'Copiar URL');
+      copyBtn.setAttribute('aria-label', 'Copiar URL de ' + engine.name);
       const copyIcon = document.createElement('i');
       copyIcon.className = 'fas fa-copy';
+      copyIcon.setAttribute('aria-hidden', 'true');
       copyBtn.appendChild(copyIcon);
       button.appendChild(copyBtn);
     }
@@ -189,16 +202,16 @@ function updateStatus(message, type = 'info') {
     statusElement.classList.add(type);
   }
 
-  // Construir con DOM seguro: icono + texto
   statusElement.textContent = '';
   const iconEl = document.createElement('i');
   iconEl.className = 'fas ' + icon;
+  iconEl.setAttribute('aria-hidden', 'true');
   statusElement.appendChild(iconEl);
   statusElement.appendChild(document.createTextNode(' ' + message));
 
   if (type !== 'info') {
     statusContainer.classList.add('pulse');
-    setTimeout(() => statusContainer.classList.remove('pulse'), 2000);
+    setTimeout(() => statusContainer.classList.remove('pulse'), PULSE_DURATION);
   }
 }
 
@@ -220,6 +233,7 @@ function showNotification(message, type = 'info') {
 
   const notification = document.createElement('div');
   notification.className = 'notification ' + type;
+  notification.setAttribute('role', 'alert');
   notification.style.cssText =
     'background: ' + (type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3') + ';' +
     'color: white; padding: 12px 20px; border-radius: 4px; margin-bottom: 10px;' +
@@ -235,8 +249,8 @@ function showNotification(message, type = 'info') {
       if (notification.parentNode) {
         container.removeChild(notification);
       }
-    }, 300);
-  }, 3000);
+    }, NOTIFICATION_FADE_DURATION);
+  }, NOTIFICATION_DISPLAY_DURATION);
 }
 
 /* ============================================================================
@@ -383,13 +397,16 @@ function applyConfigToUI() {
 function saveConfiguration() {
   if (typeof chrome === 'undefined' || !chrome.storage) return;
 
-  try {
-    chrome.storage.local.set({
-      [STORAGE_KEY]: JSON.stringify(configState)
-    });
-  } catch (_) {
-    // Error al guardar, sin accion
-  }
+  if (_saveDebounceTimer) clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer = setTimeout(() => {
+    try {
+      chrome.storage.local.set({
+        [STORAGE_KEY]: JSON.stringify(configState)
+      });
+    } catch (_) {
+      // Error al guardar
+    }
+  }, DEBOUNCE_SAVE_DELAY);
 }
 
 /* ============================================================================
@@ -425,17 +442,19 @@ function setupEventListeners() {
   if (configToggleButton && configPanel) {
     configToggleButton.addEventListener('click', function() {
       configPanel.classList.toggle('visible');
-      // Construir con DOM seguro
+      const isOpen = configPanel.classList.contains('visible');
+      configToggleButton.setAttribute('aria-expanded', String(isOpen));
       configToggleButton.textContent = '';
       const icon = document.createElement('i');
-      if (configPanel.classList.contains('visible')) {
+      icon.setAttribute('aria-hidden', 'true');
+      if (isOpen) {
         icon.className = 'fas fa-times';
         configToggleButton.appendChild(icon);
         configToggleButton.appendChild(document.createTextNode(' Cerrar'));
       } else {
         icon.className = 'fas fa-cog';
         configToggleButton.appendChild(icon);
-        configToggleButton.appendChild(document.createTextNode(' Configuracion'));
+        configToggleButton.appendChild(document.createTextNode(' Configuración'));
       }
     });
   }
@@ -484,7 +503,7 @@ function setupEventListeners() {
   if (saveButton) {
     saveButton.addEventListener('click', function() {
       saveConfiguration();
-      showNotification('Configuracion guardada', 'success');
+      showNotification('Configuración guardada', 'success');
     });
   }
 }
@@ -507,12 +526,12 @@ function handleEngineConversion(targetEngine) {
 
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (chrome.runtime.lastError) {
-      updateStatus('Error al obtener pestana activa', 'error');
+      updateStatus('Error al obtener pestaña activa', 'error');
       return;
     }
 
     if (!tabs || tabs.length === 0) {
-      updateStatus('No se encontro pestana activa', 'error');
+      updateStatus('No se encontró pestaña activa', 'error');
       return;
     }
 
@@ -523,7 +542,7 @@ function handleEngineConversion(targetEngine) {
     let query = extractQuery(currentUrl);
 
     if (!query) {
-      updateStatus('No se detecto ninguna busqueda', 'error');
+      updateStatus('No se detectó ninguna búsqueda', 'error');
       return;
     }
 
@@ -559,7 +578,7 @@ function checkCurrentPage() {
     if (chrome.runtime.lastError) return;
 
     if (!tabs || tabs.length === 0) {
-      updateStatus('No se encontro pestana activa', 'warning');
+      updateStatus('No se encontró pestaña activa', 'warning');
       return;
     }
 
@@ -571,14 +590,14 @@ function checkCurrentPage() {
       const engine = SEARCH_ENGINES[engineId];
       const imgSearch = isImageSearch(url);
       let statusMessage = 'Motor detectado: ' + engine.name;
-      if (imgSearch) statusMessage += ' (Imagenes)';
+      if (imgSearch) statusMessage += ' (Imágenes)';
       updateStatus(statusMessage, 'success');
 
       document.querySelectorAll('.engine-button').forEach(btn => {
         btn.disabled = false;
       });
     } else {
-      updateStatus('No es una pagina de busqueda compatible', 'warning');
+      updateStatus('No es una página de búsqueda compatible', 'warning');
       document.querySelectorAll('.engine-button').forEach(btn => {
         btn.disabled = true;
       });
@@ -653,12 +672,14 @@ function updateOrderList() {
 
     const gripIcon = document.createElement('i');
     gripIcon.className = 'fas fa-grip-lines';
+    gripIcon.setAttribute('aria-hidden', 'true');
     li.appendChild(gripIcon);
     li.appendChild(document.createTextNode(' '));
 
     const engineIcon = document.createElement('i');
     engineIcon.className = engine.icon;
     engineIcon.style.color = engine.color;
+    engineIcon.setAttribute('aria-hidden', 'true');
     li.appendChild(engineIcon);
     li.appendChild(document.createTextNode(' ' + engine.name));
 
@@ -806,7 +827,7 @@ function updateQuickSearchEngines() {
 function performQuickSearch(query, engine) {
   const url = buildSearchUrl(engine, query, false, configState);
   if (!url) {
-    showNotification('Motor de busqueda no valido', 'error');
+    showNotification('Motor de búsqueda no válido', 'error');
     return;
   }
 
@@ -903,7 +924,7 @@ function copyConvertedUrl(targetEngine, button) {
 
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     if (chrome.runtime.lastError || !tabs || tabs.length === 0) {
-      showNotification('Error al obtener pestana activa', 'error');
+      showNotification('Error al obtener pestaña activa', 'error');
       return;
     }
 
@@ -912,7 +933,7 @@ function copyConvertedUrl(targetEngine, button) {
 
     const query = extractQuery(currentUrl);
     if (!query) {
-      showNotification('No se detecto ninguna busqueda', 'error');
+      showNotification('No se detectó ninguna búsqueda', 'error');
       return;
     }
 
@@ -922,10 +943,10 @@ function copyConvertedUrl(targetEngine, button) {
     if (targetUrl) {
       navigator.clipboard.writeText(targetUrl).then(() => {
         button.classList.add('copied');
-        // Construir con DOM seguro
         button.textContent = '';
         const checkIcon = document.createElement('i');
         checkIcon.className = 'fas fa-check';
+        checkIcon.setAttribute('aria-hidden', 'true');
         button.appendChild(checkIcon);
 
         setTimeout(() => {
@@ -933,8 +954,9 @@ function copyConvertedUrl(targetEngine, button) {
           button.textContent = '';
           const copyIcon = document.createElement('i');
           copyIcon.className = 'fas fa-copy';
+          copyIcon.setAttribute('aria-hidden', 'true');
           button.appendChild(copyIcon);
-        }, 2000);
+        }, COPY_FEEDBACK_DURATION);
 
         showNotification('URL copiada al portapapeles', 'success');
       }).catch(() => {

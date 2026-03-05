@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Search Engine Converter",
   "version": "2.1.0",
-  "description": "Convierte búsquedas entre 30+ motores: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia y más",
+  "description": "Convierte búsquedas entre 33 motores: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia y más",
   "author": "https://github.com/686f6c61",
   "permissions": [
     "activeTab",
