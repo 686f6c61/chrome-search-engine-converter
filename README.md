@@ -114,7 +114,6 @@ chrome-search-engine-converter/
   .github/
     workflows/
       ci.yml                 # CI: lint + tests + build ZIP + artifact
-    dependabot.yml           # Actualizaciones automáticas de dependencias
   extension/
     _locales/
       es/messages.json       # Mensajes en español (i18n)
