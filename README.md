@@ -218,4 +218,3 @@ Solo se permite cargar recursos locales (`'self'`). Sin `unsafe-inline`, sin `da
 - [Changelog](CHANGELOG.md)
 - [Guía de contribución](CONTRIBUTING.md)
 - [Política de seguridad](SECURITY.md)
-- [Auditoría técnica](docs/audits/AUDIT-2026-03-05.md)

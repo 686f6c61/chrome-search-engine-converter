@@ -26,3 +26,6 @@ npm-debug.log*
 # Cobertura de tests
 coverage/
 .coverage
+
+# Auditorias internas (no se publican en el repo)
+docs/
