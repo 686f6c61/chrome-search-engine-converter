@@ -1,0 +1,24 @@
+{
+  "extName": {
+    "message": "Search Engine Converter",
+    "description": "Nombre de la extensión"
+  },
+  "extDescription": {
+    "message": "Convierte búsquedas entre 33 motores: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia y más",
+    "description": "Descripción de la extensión mostrada en la Chrome Web Store"
+  },
+  "commandConvertDefault": {
+    "message": "Convertir búsqueda actual al motor predeterminado",
+    "description": "Descripción del atajo de teclado global para convertir al motor por defecto"
+  },
+  "commandConvertN": {
+    "message": "Convertir búsqueda actual al motor $position$",
+    "description": "Descripción del atajo de teclado para convertir al motor N",
+    "placeholders": {
+      "position": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  }
+}

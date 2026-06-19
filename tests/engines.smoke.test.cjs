@@ -6,7 +6,9 @@ const assert = require('node:assert/strict');
 
 function loadEnginesModule() {
   const enginesPath = path.join(__dirname, '..', 'extension', 'engines.js');
-  const source = fs.readFileSync(enginesPath, 'utf8');
+  let source = fs.readFileSync(enginesPath, 'utf8');
+  /* Strip export keywords para poder cargar en VM (CommonJS) */
+  source = source.replace(/\bexport\s+(const|function|let|var|class)\b/g, '$1');
   const context = {};
 
   vm.createContext(context);
@@ -330,6 +332,13 @@ test('detectEngine returns null for non-search pages', () => {
 
 test('detectEngine returns null for YouTube non-search pages', () => {
   assert.equal(engines.detectEngine('https://www.youtube.com/watch?v=abc'), null);
+});
+
+test('detectEngine uses strict regex for Amazon (rejects look-alikes)', () => {
+  assert.equal(engines.detectEngine('https://www.amazon.es/s?k=laptop'), 'amazon');
+  assert.equal(engines.detectEngine('https://www.amazon.com/s?k=laptop'), 'amazon');
+  assert.equal(engines.detectEngine('https://not-amazon.example.com/page'), null);
+  assert.equal(engines.detectEngine('https://myamazon.example.com/page'), null);
 });
 
 /* ============================================================================

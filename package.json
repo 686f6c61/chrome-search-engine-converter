@@ -1,14 +1,22 @@
 {
   "name": "chrome-search-engine-converter",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
+  "type": "module",
   "description": "Chrome extension to convert searches across multiple engines",
   "scripts": {
-    "check:syntax": "node --check extension/engines.js && node --check extension/background.js && node --check extension/popup.js",
-    "test": "node --test tests/engines.smoke.test.cjs",
-    "check": "npm run check:syntax && npm run test"
+    "check:syntax": "node --input-type=module --check < extension/engines.js && node --input-type=module --check < extension/background.js && node --input-type=module --check < extension/popup.js",
+    "test": "node --test tests/engines.smoke.test.cjs tests/engines.custom.test.cjs tests/background.test.cjs",
+    "check": "npm run check:syntax && npm run test",
+    "lint": "eslint extension/ tests/",
+    "lint:fix": "eslint --fix extension/ tests/",
+    "test:coverage": "node --test --experimental-test-coverage tests/engines.smoke.test.cjs tests/engines.custom.test.cjs tests/background.test.cjs",
+    "build": "node scripts/build-zip.mjs",
+    "ci": "npm run lint && npm run check:syntax && npm run test"
   },
   "devDependencies": {
-    "sortablejs": "^1.15.6"
+    "eslint": "^9.39.4",
+    "globals": "^16.3.0",
+    "sortablejs": "^1.15.7"
   }
 }

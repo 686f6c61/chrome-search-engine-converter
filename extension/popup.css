@@ -146,6 +146,14 @@ body {
   box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
 }
 
+/* Clear button is hidden by default; popup.js toggles via .visible */
+#clearSearchButton {
+  display: none;
+}
+#clearSearchButton.visible {
+  display: block;
+}
+
 .clear-button {
   position: absolute;
   right: 8px;
@@ -397,6 +405,96 @@ body {
   color: #212121;
 }
 
+/* Custom engine form in config panel */
+.custom-engine-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-engine-input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.custom-engine-input:focus-visible {
+  outline: 2px solid #4285F4;
+  outline-offset: 1px;
+}
+
+.custom-engine-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.custom-engine-select {
+  flex: 1;
+  min-width: 80px;
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.custom-engine-color {
+  width: 40px;
+  height: 34px;
+  min-width: 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px;
+  background: white;
+  box-sizing: border-box;
+}
+
+.custom-engine-list {
+  margin-top: 8px;
+  max-height: 150px;
+}
+
+.custom-engine-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.custom-engine-delete {
+  background: transparent;
+  border: none;
+  color: #DB4437;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.custom-engine-delete:hover {
+  background-color: rgba(219, 68, 55, 0.1);
+}
+
+/* Default engine select needs extra bottom margin for spacing in config panel */
+.default-engine-select {
+  margin-bottom: 12px;
+}
+
+/* Visibility checkboxes grid (2 columns) */
+.visibility-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* Configuration item styling */
 .config-item {
   margin-bottom: 12px;
@@ -424,6 +522,46 @@ body {
   text-align: right;
 }
 
+/* Import/export button row */
+.import-export-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Hidden file input (moved out of flex container to avoid layout issues) */
+.hidden-file-input {
+  display: none;
+}
+
+.config-export-button,
+.config-import-button {
+  background-color: #2a2a2a;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.config-export-button:hover,
+.config-import-button:hover {
+  background-color: #000;
+}
+
+.config-export-button:focus-visible,
+.config-import-button:focus-visible {
+  outline: 2px solid #4285F4;
+  outline-offset: 2px;
+}
+
 .config-save-button {
   background-color: #4285F4;
   color: white;
@@ -437,11 +575,42 @@ body {
   transition: background-color 0.2s ease;
 }
 
-.config-save-button:hover {
-  background-color: #3367D6;
-}
+  .config-save-button:hover {
+    background-color: #3367D6;
+  }
 
-.config-description {
+  .config-export-button,
+  .config-import-button {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .config-export-button:hover,
+  .config-import-button:hover {
+    background-color: #4a4a4a;
+  }
+
+  .custom-engine-input,
+  .custom-engine-select {
+    background-color: #1e1e1e;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .custom-engine-color {
+    background-color: #1e1e1e;
+    border-color: #3a3a3a;
+  }
+
+  .custom-engine-delete {
+    color: #f44336;
+  }
+
+  .custom-engine-delete:hover {
+    background-color: rgba(244, 67, 54, 0.15);
+  }
+
+  .config-description {
   font-size: 14px;
   color: #212121;
   margin-bottom: 8px;
@@ -590,5 +759,172 @@ body {
   .quick-engine-select,
   .button-order-item {
     transition: none;
+  }
+}
+
+/* ============================================================================
+ * MODO OSCURO (prefers-color-scheme: dark)
+ * ============================================================================
+ * Activa paleta oscura cuando el usuario tiene tema oscuro en el sistema.
+ * Mantiene contraste WCAG AA en todos los elementos.
+ * ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  }
+
+  .header {
+    border-bottom-color: #3a3a3a;
+  }
+
+  .logo i {
+    color: #e0e0e0;
+  }
+
+  .status-container {
+    background-color: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  #status {
+    color: #e0e0e0;
+  }
+
+  #status.success,
+  #status.error,
+  #status.warning {
+    color: #e0e0e0;
+  }
+
+  .quick-search-container {
+    background-color: transparent;
+  }
+
+  #quickSearchInput {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  #quickSearchInput::placeholder {
+    color: #888;
+  }
+
+  .quick-engine-select {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .mode-toggle {
+    background-color: #2a2a2a;
+  }
+
+  .mode-button {
+    color: #e0e0e0;
+  }
+
+  .mode-button:hover:not(.active) {
+    background-color: #3a3a3a;
+  }
+
+  .mode-button.active {
+    background-color: #e0e0e0;
+    color: #1e1e1e;
+  }
+
+  /* Search buttons stay dark but adjust hover/disabled for contrast */
+  .search-button {
+    background-color: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .search-button:hover {
+    background-color: #3a3a3a;
+  }
+
+  .search-button:disabled {
+    background-color: #1a1a1a;
+    color: #666;
+  }
+
+  .config-button {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .config-button:hover {
+    background-color: #3a3a3a;
+  }
+
+  .config-panel {
+    background-color: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .config-panel h3 {
+    color: #e0e0e0;
+  }
+
+  .config-item label {
+    color: #e0e0e0;
+  }
+
+  .config-item select {
+    background-color: #1e1e1e;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .config-description {
+    color: #b0b0b0;
+  }
+
+  .button-order-list {
+    background-color: #1e1e1e;
+    border-color: #3a3a3a;
+  }
+
+  .button-order-item {
+    background-color: #1e1e1e;
+    border-bottom-color: #3a3a3a;
+  }
+
+  .button-order-item:hover {
+    background-color: #2a2a2a;
+  }
+
+  .button-order-list::-webkit-scrollbar-track {
+    background: #1e1e1e;
+  }
+
+  .button-order-list::-webkit-scrollbar-thumb {
+    background: #555;
+  }
+
+  .button-order-list::-webkit-scrollbar-thumb:hover {
+    background: #777;
+  }
+
+  .footer {
+    color: #888;
+    border-top-color: #3a3a3a;
+  }
+
+  .footer a {
+    color: #8ab4f8;
+  }
+
+  /* Focus ring stays blue in both themes for consistency */
+  .search-button:focus-visible,
+  .mode-button:focus-visible,
+  .config-button:focus-visible,
+  .config-save-button:focus-visible,
+  .clear-button:focus-visible,
+  .copy-button:focus-visible {
+    outline-color: #8ab4f8;
   }
 }

@@ -1,14 +1,40 @@
 {
   "manifest_version": 3,
-  "name": "Search Engine Converter",
-  "version": "2.1.0",
-  "description": "Convierte búsquedas entre 33 motores: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia y más",
+  "minimum_chrome_version": "121",
+  "name": "__MSG_extName__",
+  "short_name": "Search Converter",
+  "version": "2.2.0",
+  "description": "__MSG_extDescription__",
   "author": "https://github.com/686f6c61",
+  "homepage_url": "https://github.com/686f6c61/chrome-search-engine-converter",
+  "default_locale": "es",
   "permissions": [
     "activeTab",
     "contextMenus",
-    "storage"
+    "storage",
+    "omnibox"
   ],
+  "omnibox": {
+    "keyword": "sc"
+  },
+  "commands": {
+    "convert-to-default": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "__MSG_commandConvertDefault__"
+    },
+    "convert-to-1": {
+      "description": "__MSG_commandConvertN__"
+    },
+    "convert-to-2": {
+      "description": "__MSG_commandConvertN__"
+    },
+    "convert-to-3": {
+      "description": "__MSG_commandConvertN__"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -19,7 +45,8 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "icons": {
     "16": "images/icon16.png",
@@ -29,6 +56,6 @@
     "256": "images/icon256.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:;"
+    "extension_pages": "script-src 'self'; object-src 'none'; style-src 'self'; font-src 'self'; img-src 'self';"
   }
 }

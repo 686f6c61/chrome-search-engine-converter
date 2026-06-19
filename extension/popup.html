@@ -1,6 +1,6 @@
 <!--
   ============================================================================
-  Search Engine Converter v2.1.0 - Popup Interface
+  Search Engine Converter v2.2.0 - Popup Interface
   ============================================================================
 
   @file        popup.html
@@ -12,8 +12,8 @@
   @author      @686f6c61
   @repository  https://github.com/686f6c61/chrome-search-engine-converter
   @license     MIT License
-  @version     2.1.0
-  @date        2025-01-18
+  @version     2.2.0
+  @date        2026-03-05
 
   ============================================================================
 -->
@@ -21,6 +21,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <title>Search Engine Converter</title>
   <link rel="stylesheet" href="css/fontawesome.min.css">
   <link rel="stylesheet" href="css/fonts.css">
@@ -45,7 +47,7 @@
     <div class="search-input-wrapper">
       <i class="fas fa-search search-icon" aria-hidden="true"></i>
       <input type="text" id="quickSearchInput" placeholder="Búsqueda rápida en cualquier motor..." />
-      <button id="clearSearchButton" class="clear-button" aria-label="Limpiar búsqueda" style="display: none;">
+      <button id="clearSearchButton" class="clear-button" aria-label="Limpiar búsqueda">
         <i class="fas fa-times" aria-hidden="true"></i>
       </button>
     </div>
@@ -75,7 +77,7 @@
   </div>
 
   <!-- Configuration panel (initially hidden) -->
-  <div id="configPanel" class="config-panel">
+  <div id="configPanel" class="config-panel" aria-hidden="true">
     <!-- Domain configuration section -->
     <h3>Configuración de dominios</h3>
     <div class="config-item">
@@ -101,11 +103,11 @@
     <h3>Motores de búsqueda</h3>
     <div class="config-item">
       <label for="defaultSearchEngine">Motor predeterminado para acción rápida del menú contextual:</label>
-      <select id="defaultSearchEngine" style="margin-bottom: 12px;">
+      <select id="defaultSearchEngine" class="default-engine-select">
         <!-- Opciones generadas dinamicamente desde engines.js -->
       </select>
       <p class="config-description">Motores visibles en el popup:</p>
-      <div id="visibilityCheckboxes" class="visibility-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+      <div id="visibilityCheckboxes" class="visibility-grid">
         <!-- Checkboxes generados dinamicamente desde engines.js -->
       </div>
     </div>
@@ -119,6 +121,39 @@
       </ul>
     </div>
 
+    <!-- Import/export configuration section -->
+    <h3>Copia de seguridad</h3>
+    <div class="config-item">
+      <p class="config-description">Exporta tu configuración para guardarla o transferirla a otro equipo:</p>
+      <div class="import-export-actions">
+        <button id="exportConfigButton" class="config-export-button" type="button">
+          <i class="fas fa-download" aria-hidden="true"></i> Exportar
+        </button>
+        <button id="importConfigButton" class="config-import-button" type="button">
+          <i class="fas fa-upload" aria-hidden="true"></i> Importar
+        </button>
+      </div>
+      <input type="file" id="importConfigFile" accept="application/json,.json" class="hidden-file-input">
+    </div>
+
+    <!-- Custom engines section -->
+    <h3>Motores personalizados</h3>
+    <div class="config-item">
+      <p class="config-description">Añade tus propios motores de búsqueda. La URL debe contener <code>{query}</code> donde irá el término de búsqueda.</p>
+      <div class="custom-engine-form">
+        <input type="text" id="customEngineName" placeholder="Nombre (ej: Mi Motor)" class="custom-engine-input" maxlength="30">
+        <input type="text" id="customEngineUrl" placeholder="https://mimotor.com/?q={query}" class="custom-engine-input">
+        <div class="custom-engine-row">
+          <select id="customEngineIcon" class="custom-engine-select"></select>
+          <input type="color" id="customEngineColor" value="#4285F4" class="custom-engine-color">
+          <button id="addCustomEngineButton" class="config-import-button" type="button">
+            <i class="fas fa-plus" aria-hidden="true"></i> Añadir
+          </button>
+        </div>
+      </div>
+      <ul id="customEngineList" class="button-order-list custom-engine-list"></ul>
+    </div>
+
     <!-- Save configuration button -->
     <div class="config-actions">
       <button id="saveConfigButton" class="config-save-button">Guardar</button>
@@ -127,12 +162,11 @@
 
   <!-- Footer with version and repository link -->
   <div class="footer">
-    <p>v2.1.0 | <a href="https://github.com/686f6c61/chrome-search-engine-converter" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+    <p>v2.2.0 | <a href="https://github.com/686f6c61/chrome-search-engine-converter" target="_blank" rel="noopener noreferrer">GitHub</a></p>
   </div>
 
-  <!-- Scripts: engines.js debe cargarse primero (registro de motores) -->
-  <script src="engines.js"></script>
+  <!-- Scripts: popup.js importa engines.js como ES module -->
   <script src="Sortable.min.js"></script>
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

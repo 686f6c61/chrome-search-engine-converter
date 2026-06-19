@@ -1,0 +1,24 @@
+{
+  "extName": {
+    "message": "Search Engine Converter",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Convert searches across 33 engines: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia and more",
+    "description": "Extension description shown in the Chrome Web Store"
+  },
+  "commandConvertDefault": {
+    "message": "Convert current search to default engine",
+    "description": "Global keyboard shortcut description for converting to the default engine"
+  },
+  "commandConvertN": {
+    "message": "Convert current search to engine $position$",
+    "description": "Keyboard shortcut description for converting to engine N",
+    "placeholders": {
+      "position": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  }
+}

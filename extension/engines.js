@@ -29,19 +29,19 @@
  */
 
 /** Clave usada en chrome.storage.local para persistir la configuracion del usuario */
-const STORAGE_KEY = 'searchEngineConverterConfig';
+export const STORAGE_KEY = 'searchEngineConverterConfig';
 
 /** Dominios permitidos para Amazon (whitelist cerrada para evitar inyeccion de dominios) */
-const VALID_AMAZON_DOMAINS = ['es', 'com', 'co.uk', 'de', 'fr', 'it'];
+export const VALID_AMAZON_DOMAINS = ['es', 'com', 'co.uk', 'de', 'fr', 'it'];
 
 /** Dominios permitidos para YouTube */
-const VALID_YOUTUBE_DOMAINS = ['com', 'es'];
+export const VALID_YOUTUBE_DOMAINS = ['com', 'es'];
 
 /** Motor por defecto para acciones de menu contextual y configuracion inicial */
-const DEFAULT_SEARCH_ENGINE_ID = 'google';
+export const DEFAULT_SEARCH_ENGINE_ID = 'google';
 
 /** Dominios por defecto para cada motor con dominio configurable */
-const DOMAIN_DEFAULTS = {
+export const DOMAIN_DEFAULTS = {
   amazon: 'es',
   youtube: 'com'
 };
@@ -64,7 +64,7 @@ const DOMAIN_DEFAULTS = {
  * @property {boolean} hasCopyButton     - Si muestra boton para copiar la URL convertida
  * @property {string}  [usesDomain]      - (Opcional) 'amazon' o 'youtube' para dominio configurable
  */
-const SEARCH_ENGINES = {
+export const SEARCH_ENGINES = {
   google: {
     id: 'google',
     buttonId: 'googleButton',
@@ -537,7 +537,7 @@ const SEARCH_ENGINES = {
  * estaba buscando imagenes y se intenta convertir a la busqueda de imagenes
  * del motor de destino (si lo soporta).
  */
-const IMAGE_SEARCH_INDICATORS = ['tbm=isch', '/images', 'iax=images', 'images/search'];
+export const IMAGE_SEARCH_INDICATORS = ['tbm=isch', '/images', 'iax=images', 'images/search'];
 
 /**
  * Patrones regex para extraer el termino de busqueda de una URL.
@@ -559,7 +559,7 @@ const IMAGE_SEARCH_INDICATORS = ['tbm=isch', '/images', 'iax=images', 'images/se
  *
  * Nota: Spotify usa path en vez de query param, se maneja aparte en extractQuery().
  */
-const QUERY_PATTERNS = [
+export const QUERY_PATTERNS = [
   /[?&]q=([^&]+)/,
   /[?&]search_query=([^&]+)/,
   /[?&]k=([^&]+)/,
@@ -578,7 +578,7 @@ const QUERY_PATTERNS = [
  * Se usa como valor inicial de configState.visibleEngines en popup.js.
  * Ejemplo: { google: true, brave: true, github: false, ... }
  */
-const DEFAULT_CONFIG = Object.fromEntries(
+export const DEFAULT_CONFIG = Object.fromEntries(
   Object.entries(SEARCH_ENGINES).map(([id, engine]) => [id, engine.visibleByDefault])
 );
 
@@ -589,7 +589,7 @@ const DEFAULT_CONFIG = Object.fromEntries(
  * @param {string} value - engineId o buttonId
  * @returns {string} engineId valido
  */
-function normalizeDefaultSearchEngine(value) {
+export function normalizeDefaultSearchEngine(value) {
   if (typeof value !== 'string' || !value) {
     return DEFAULT_SEARCH_ENGINE_ID;
   }
@@ -614,23 +614,30 @@ function normalizeDefaultSearchEngine(value) {
 /**
  * Construye la URL de busqueda para un motor dado.
  *
- * @param {string} engineId      - ID del motor (clave de SEARCH_ENGINES)
+ * @param {string} engineId      - ID del motor (clave de SEARCH_ENGINES o custom)
  * @param {string} query         - Termino de busqueda del usuario (texto plano)
- * @param {boolean} isImageSearch - true si se debe usar la URL de imagenes
+ * @param {boolean} useImageSearch - true si se debe usar la URL de imagenes
  * @param {Object} domainConfig  - Objeto con amazonDomain, youtubeDomain, etc.
+ * @param {Array}  [customEngines] - Motores personalizados del usuario (opcional)
  * @returns {string|null} URL completa o null si el motor no existe
  *
  * Seguridad: el query se codifica con encodeURIComponent() antes de insertarlo
  * en el template, previniendo inyeccion de parametros en la URL.
  */
-function buildSearchUrl(engineId, query, isImageSearch, domainConfig) {
-  const engine = SEARCH_ENGINES[engineId];
+export function buildSearchUrl(engineId, query, useImageSearch, domainConfig, customEngines) {
+  let engine = SEARCH_ENGINES[engineId];
+
+  if (!engine && Array.isArray(customEngines)) {
+    const customMap = buildCustomEnginesMap(customEngines);
+    engine = customMap[engineId];
+  }
+
   if (!engine) return null;
 
   const encodedQuery = encodeURIComponent(query);
   let template;
 
-  if (isImageSearch && engine.imageSearchUrl) {
+  if (useImageSearch && engine.imageSearchUrl) {
     template = engine.imageSearchUrl;
   } else {
     template = engine.searchUrl;
@@ -664,7 +671,7 @@ function buildSearchUrl(engineId, query, isImageSearch, domainConfig) {
  * @param {string} value - valor codificado
  * @returns {string|null}
  */
-function safeDecodeURIComponent(value) {
+export function safeDecodeURIComponent(value) {
   try {
     return decodeURIComponent(value);
   } catch (_) {
@@ -683,7 +690,7 @@ function safeDecodeURIComponent(value) {
  *   2. Luego itera QUERY_PATTERNS probando cada regex
  *   3. Los '+' se reemplazan por espacios antes de decodificar
  */
-function extractQuery(url) {
+export function extractQuery(url) {
   /* Caso especial: Spotify usa path en vez de query param (/search/<termino>) */
   const spotifyMatch = url.match(/open\.spotify\.com\/search\/(.+)/);
   if (spotifyMatch) {
@@ -712,10 +719,17 @@ function extractQuery(url) {
  * El orden de iteracion importa: si hay patrones que se solapan (ej: 'google.com'
  * vs 'scholar.google.com'), el mas especifico debe aparecer primero en el objeto.
  */
-function detectEngine(url) {
+export function detectEngine(url) {
   for (const [id, engine] of Object.entries(SEARCH_ENGINES)) {
     if (id === 'youtube') {
       if (/https?:\/\/(?:www\.)?youtube\.[^/]+\/results(?:[/?#]|$)/.test(url)) {
+        return id;
+      }
+      continue;
+    }
+
+    if (id === 'amazon') {
+      if (/^https?:\/\/(?:www\.)?amazon\./.test(url)) {
         return id;
       }
       continue;
@@ -734,7 +748,7 @@ function detectEngine(url) {
  * @param {string} url - URL completa
  * @returns {boolean} true si contiene algun indicador de busqueda de imagenes
  */
-function isImageSearch(url) {
+export function isImageSearch(url) {
   return IMAGE_SEARCH_INDICATORS.some(indicator => url.includes(indicator));
 }
 
@@ -746,7 +760,7 @@ function isImageSearch(url) {
  * @param {string} value - Valor del dominio a validar (ej: 'es', 'com', 'co.uk')
  * @returns {boolean} true si el dominio esta en la whitelist
  */
-function validateDomain(type, value) {
+export function validateDomain(type, value) {
   if (type === 'amazon') {
     return VALID_AMAZON_DOMAINS.includes(value);
   }
@@ -754,4 +768,148 @@ function validateDomain(type, value) {
     return VALID_YOUTUBE_DOMAINS.includes(value);
   }
   return false;
+}
+
+/* ============================================================================
+ * MOTORES PERSONALIZADOS DEL USUARIO
+ * ============================================================================
+ * Permite al usuario anadir sus propios motores de busqueda con un template
+ * de URL. Los motores personalizados se guardan en chrome.storage.local y se
+ * mergean con SEARCH_ENGINES en runtime.
+ *
+ * Esquema de un motor personalizado:
+ * @property {string}  id        - Identificador unico (prefijo 'custom_')
+ * @property {string}  buttonId  - ID del elemento DOM (derivado de id)
+ * @property {string}  name      - Nombre para mostrar
+ * @property {string}  searchUrl - Template de URL con {query}
+ * @property {string}  icon      - Clase CSS de Font Awesome
+ * @property {string}  color     - Color hexadecimal
+ * @property {boolean} visibleByDefault  - Siempre true
+ * @property {boolean} showInContextMenu - Siempre true
+ * @property {boolean} hasCopyButton     - Siempre true
+ * @property {string|null} queryParam    - null (usa {query} en la URL)
+ * @property {string|null} imageSearchUrl - null
+ * @property {string}  detectionPattern  - Derivado del searchUrl
+ * ============================================================================ */
+
+/** Prefijo para IDs de motores personalizados */
+export const CUSTOM_ENGINE_ID_PREFIX = 'custom_';
+
+/** Iconos de Font Awesome disponibles en el subset para motores personalizados */
+export const CUSTOM_ENGINE_ICONS = [
+  'fas fa-search',
+  'fas fa-globe',
+  'fas fa-bookmark',
+  'fas fa-star',
+  'fas fa-heart',
+  'fas fa-flag',
+  'fas fa-rocket',
+  'fas fa-flask',
+  'fas fa-code',
+  'fas fa-terminal',
+  'fas fa-database',
+  'fas fa-server',
+  'fas fa-cube',
+  'fas fa-bolt',
+  'fas fa-book',
+  'fas fa-pen'
+];
+
+/** Colores predefinidos para motores personalizados */
+export const CUSTOM_ENGINE_COLORS = [
+  '#4285F4', '#DB4437', '#0F9D58', '#F4B400',
+  '#FF6A00', '#00BCD4', '#7C4DFF', '#E91E63',
+  '#333333', '#666666'
+];
+
+/**
+ * Valida que un motor personalizado tenga los campos obligatorios y los
+ * formatos correctos. Sanitiza el input para evitar inyeccion de HTML o
+ * URLs maliciosas.
+ *
+ * @param {Object} engine - Motor personalizado a validar
+ * @returns {Object|null} Motor sanitizado o null si es invalido
+ */
+export function validateCustomEngine(engine) {
+  if (!engine || typeof engine !== 'object') return null;
+
+  const name = typeof engine.name === 'string'
+    ? engine.name.trim().slice(0, 30)
+    : '';
+  if (!name) return null;
+
+  const searchUrl = typeof engine.searchUrl === 'string'
+    ? engine.searchUrl.trim()
+    : '';
+  if (!searchUrl) return null;
+  if (!searchUrl.startsWith('https://')) return null;
+  if (!searchUrl.includes('{query}')) return null;
+
+  const icon = CUSTOM_ENGINE_ICONS.includes(engine.icon)
+    ? engine.icon
+    : 'fas fa-search';
+
+  const color = /^#[0-9a-fA-F]{6}$/.test(engine.color)
+    ? engine.color
+    : '#4285F4';
+
+  let id = typeof engine.id === 'string' ? engine.id : '';
+  if (!id || !id.startsWith(CUSTOM_ENGINE_ID_PREFIX)) {
+    id = CUSTOM_ENGINE_ID_PREFIX + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  /* Extraer dominio de la URL para detectionPattern */
+  let detectionPattern = '';
+  try {
+    const urlObj = new URL(searchUrl.replace('{query}', 'test'));
+    detectionPattern = urlObj.hostname;
+  } catch (_) {
+    detectionPattern = searchUrl.slice(8, 40);
+  }
+
+  return {
+    id,
+    buttonId: id + 'Button',
+    name,
+    searchUrl,
+    icon,
+    color,
+    imageSearchUrl: null,
+    queryParam: null,
+    detectionPattern,
+    visibleByDefault: true,
+    showInContextMenu: true,
+    hasCopyButton: true
+  };
+}
+
+/**
+ * Convierte un array de motores personalizados (en bruto) en un mapa
+ * { id: engine } validado y sanitizado.
+ *
+ * @param {Array} customEngines - Array de motores en bruto desde storage
+ * @returns {Object} Mapa { id: engine } de motores validados
+ */
+export function buildCustomEnginesMap(customEngines) {
+  if (!Array.isArray(customEngines)) return {};
+
+  const map = {};
+  for (const raw of customEngines) {
+    const validated = validateCustomEngine(raw);
+    if (validated && !map[validated.id]) {
+      map[validated.id] = validated;
+    }
+  }
+  return map;
+}
+
+/**
+ * Devuelve el mapa completo de motores: los predefinidos (SEARCH_ENGINES)
+ * mas los personalizados del usuario.
+ *
+ * @param {Array} customEngines - Array de motores personalizados en bruto
+ * @returns {Object} Mapa mergeado { id: engine }
+ */
+export function getMergedEngines(customEngines) {
+  return { ...SEARCH_ENGINES, ...buildCustomEnginesMap(customEngines) };
 }

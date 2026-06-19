@@ -14,7 +14,7 @@
  *   - Por eso se recrea el estado (menus + config) en ambos eventos
  *
  * Seguridad:
- *   - importScripts() carga solo archivos locales empaquetados en la extension
+ *   - import dinámico carga solo archivos locales empaquetados en la extensión
  *   - Los dominios de Amazon/YouTube se validan contra whitelists de engines.js
  *   - La configuracion se parsea con try/catch para manejar datos corruptos
  *   - No se ejecuta codigo dinamico ni se cargan scripts remotos
@@ -31,7 +31,19 @@
  */
 
 /* Carga el registro centralizado de motores (SEARCH_ENGINES, buildSearchUrl, etc.) */
-importScripts('engines.js');
+import {
+  STORAGE_KEY,
+  DEFAULT_SEARCH_ENGINE_ID,
+  DOMAIN_DEFAULTS,
+  SEARCH_ENGINES,
+  DEFAULT_CONFIG,
+  validateDomain,
+  normalizeDefaultSearchEngine,
+  buildSearchUrl,
+  extractQuery,
+  detectEngine,
+  isImageSearch
+} from './engines.js';
 
 /**
  * Configuracion en memoria del service worker.
@@ -41,7 +53,8 @@ importScripts('engines.js');
 let config = {
   amazonDomain: DOMAIN_DEFAULTS.amazon,
   youtubeDomain: DOMAIN_DEFAULTS.youtube,
-  defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID
+  defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID,
+  customEngines: []
 };
 
 const CONTEXT_MENU_DEFAULT_ID = 'search_default';
@@ -52,8 +65,13 @@ const CONTEXT_MENU_ENGINE_PREFIX = 'engine_';
 /* --- Eventos del ciclo de vida del service worker --- */
 
 /** Al instalar o actualizar la extension: recrear menus y cargar config */
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   loadConfig(createContextMenus);
+
+  /* Al desinstalar, abrir encuesta breve para captar feedback */
+  if (details.reason === 'install') {
+    chrome.runtime.setUninstallURL('https://github.com/686f6c61/chrome-search-engine-converter/issues/new?labels=uninstall-feedback&title=Motivo+de+desinstalacion');
+  }
 });
 
 /** Al iniciar Chrome: recrear menus y cargar config (el SW pudo haber muerto) */
@@ -84,6 +102,11 @@ function loadConfig(onComplete) {
         }
 
         nextConfig.defaultSearchEngine = normalizeDefaultSearchEngine(savedConfig.defaultSearchEngine);
+
+        if (Array.isArray(savedConfig.customEngines)) {
+          nextConfig.customEngines = savedConfig.customEngines;
+        }
+
         config = nextConfig;
       } catch (_) {
         /* JSON corrupto en storage: se mantienen los valores por defecto */
@@ -177,7 +200,7 @@ chrome.contextMenus.onClicked.addListener((info) => {
     return;
   }
 
-  const url = buildSearchUrl(engineId, query, false, config);
+  const url = buildSearchUrl(engineId, query, false, config, config.customEngines || []);
 
   if (url) {
     chrome.tabs.create({ url: url });
@@ -193,7 +216,240 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   loadConfig(createContextMenus);
 });
 
+/* ============================================================================
+ * ATAJOS DE TECLADO GLOBALES (chrome.commands)
+ * ============================================================================
+ * Permiten convertir la busqueda de la pestana actual sin abrir el popup.
+ * El usuario los configura en chrome://extensions/shortcuts.
+ * ============================================================================ */
+
+chrome.commands.onCommand.addListener((command) => {
+  if (!command || !command.startsWith('convert-to-')) return;
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (chrome.runtime.lastError || !tabs || tabs.length === 0) return;
+
+    const activeTab = tabs[0];
+    const url = activeTab.url || '';
+    const query = extractQuery(url);
+
+    if (!query) return;
+
+    let targetEngineId = null;
+
+    if (command === 'convert-to-default') {
+      targetEngineId = getDefaultEngineId();
+    } else {
+      const match = command.match(/^convert-to-(\d+)$/);
+      if (!match) return;
+      const position = parseInt(match[1], 10);
+
+      const visibleEngineIds = Object.keys(DEFAULT_CONFIG).filter(
+        (id) => DEFAULT_CONFIG[id]
+      );
+      if (position < 1 || position > visibleEngineIds.length) return;
+      targetEngineId = visibleEngineIds[position - 1];
+    }
+
+    if (!targetEngineId) return;
+
+    const imgSearch = isImageSearch(url);
+    const targetUrl = buildSearchUrl(targetEngineId, query, imgSearch, config, config.customEngines || []);
+
+    if (targetUrl) {
+      chrome.tabs.update(activeTab.id, { url: targetUrl });
+    }
+  });
+});
+
+/* ============================================================================
+ * OMNIBOX (barra de direcciones)
+ * ============================================================================
+ * Permite al usuario escribir "sc <termino>" en la barra de direcciones para
+ * buscar directamente en su motor predeterminado sin abrir el popup.
+ *
+ * Sintaxis soportada:
+ *   sc <termino>               -> busca en el motor predeterminado
+ *   sc <termino> en <motor>    -> busca en el motor indicado (por nombre)
+ * ============================================================================ */
+
+chrome.omnibox.onInputEntered.addListener((text, disposition) => {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return;
+
+  let query = trimmed;
+  let engineId = getDefaultEngineId();
+
+  /* Sintaxis: "<termino> en <motor>" */
+  const match = trimmed.match(/^(.+?)\s+en\s+([a-zA-Z0-9_-]+)$/i);
+  if (match) {
+    query = match[1];
+    const requestedEngine = match[2].toLowerCase();
+
+    /* Buscar por id, nombre o buttonId (case-insensitive) */
+    const engines = SEARCH_ENGINES;
+    for (const [id, engine] of Object.entries(engines)) {
+      if (
+        id.toLowerCase() === requestedEngine ||
+        engine.name.toLowerCase() === requestedEngine ||
+        engine.buttonId.toLowerCase() === requestedEngine
+      ) {
+        engineId = id;
+        break;
+      }
+    }
+  }
+
+  const url = buildSearchUrl(engineId, query, false, config, config.customEngines || []);
+  if (!url) return;
+
+  /* disposition: "currentTab" | "newForegroundTab" | "newBackgroundTab" */
+  if (disposition === 'newForegroundTab' || disposition === 'newBackgroundTab') {
+    chrome.tabs.create({ url, active: disposition === 'newForegroundTab' });
+  } else {
+    chrome.tabs.update({ url });
+  }
+});
+
+/* Sugerencias mientras el usuario escribe en la omnibox */
+chrome.omnibox.onInputChanged.addListener((text, suggest) => {
+  const trimmed = (text || '').trim();
+  if (!trimmed) {
+    suggest([]);
+    return;
+  }
+
+  const defaultEngine = SEARCH_ENGINES[getDefaultEngineId()];
+  const defaultName = defaultEngine ? defaultEngine.name : 'Google';
+  const suggestions = [
+    {
+      content: trimmed,
+      description: `Buscar "${trimmed}" en ${defaultName} (predeterminado)`
+    }
+  ];
+
+  /* Sugerir motores adicionales si el texto no contiene " en " */
+  if (!/\s+en\s+/i.test(trimmed)) {
+    const popularEngines = ['google', 'duckduckgo', 'brave', 'bing', 'wikipedia', 'youtube'];
+    popularEngines.forEach(id => {
+      const engine = SEARCH_ENGINES[id];
+      if (engine && id !== getDefaultEngineId()) {
+        suggestions.push({
+          content: `${trimmed} en ${engine.name}`,
+          description: `Buscar "${trimmed}" en ${engine.name}`
+        });
+      }
+    });
+  }
+
+  suggest(suggestions.slice(0, 6));
+});
+
+/* ============================================================================
+ * BADGE DINAMICO EN EL ICONO
+ * ============================================================================
+ * Muestra una letra sobre el icono de la extension indicando el motor
+ * detectado en la pestana activa. Actualiza al cambiar de pestana o URL.
+ * ============================================================================ */
+
+const ENGINE_BADGE_LABELS = {
+  google: 'G',
+  brave: 'B',
+  duckduckgo: 'D',
+  bing: 'B',
+  amazon: 'A',
+  youtube: 'Y',
+  wikipedia: 'W',
+  twitter: 'X',
+  github: 'G',
+  gitlab: 'G',
+  stackoverflow: 'S',
+  reddit: 'R',
+  pinterest: 'P',
+  startpage: 'S',
+  ecosia: 'E',
+  qwant: 'Q',
+  yandex: 'Y',
+  baidu: 'B',
+  ebay: 'E',
+  aliexpress: 'A',
+  etsy: 'E',
+  scholar: 'S',
+  archive: 'A',
+  wolframalpha: 'W',
+  spotify: 'S',
+  soundcloud: 'S',
+  vimeo: 'V',
+  linkedin: 'L',
+  tiktok: 'T',
+  perplexity: 'P',
+  kagi: 'K',
+  searx: 'X',
+  you: 'U'
+};
+
+const ENGINE_BADGE_COLORS = {
+  google: '#4285F4',
+  brave: '#FB542B',
+  duckduckgo: '#DE5833',
+  bing: '#008373',
+  amazon: '#FF9900',
+  youtube: '#FF0000',
+  wikipedia: '#636466',
+  twitter: '#000000',
+  reddit: '#FF4500',
+  spotify: '#1DB954',
+  github: '#333333',
+  linkedin: '#0077B5'
+};
+
+/**
+ * Actualiza el badge del icono segun el motor detectado en una URL.
+ * Si no se detecta motor, limpia el badge.
+ *
+ * @param {string} url - URL de la pestana activa
+ */
+function updateBadgeForUrl(url) {
+  if (!url) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const engineId = detectEngine(url);
+  if (!engineId) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const label = ENGINE_BADGE_LABELS[engineId] || '';
+  const color = ENGINE_BADGE_COLORS[engineId] || '#212121';
+
+  chrome.action.setBadgeText({ text: label });
+  chrome.action.setBadgeBackgroundColor({ color });
+}
+
+/* Actualizar badge al cambiar de pestana activa */
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (chrome.runtime.lastError) return;
+    updateBadgeForUrl(tab.url);
+  });
+});
+
+/* Actualizar badge al navegar dentro de una pestana */
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url || changeInfo.status === 'complete') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (chrome.runtime.lastError || !tabs || tabs.length === 0) return;
+      if (tabs[0].id === tabId) {
+        updateBadgeForUrl(tab.url || tabs[0].url);
+      }
+    });
+  }
+});
+
 /* --- Inicializacion inmediata --- */
-/* Necesario porque el SW puede despertarse por un evento contextMenu
-   sin que se dispare onInstalled ni onStartup */
-loadConfig(createContextMenus);
+/* El SW puede despertar por un evento contextMenu sin que se dispare
+   onInstalled ni onStartup. En ese caso solo necesitamos tener la config
+   cargada en memoria; los menus ya fueron creados en onInstalled/onStartup. */
+loadConfig();

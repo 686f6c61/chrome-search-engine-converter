@@ -1,1 +1,28 @@
+# Dependencias
 node_modules/
+
+# Artefactos de build
+dist/
+*.zip
+*.crx
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Cobertura de tests
+coverage/
+.coverage

@@ -1,7 +1,7 @@
 # Search Engine Converter - Política de privacidad
 
-**Última actualización**: 5 de febrero de 2026
-**Versión de la extensión**: 2.1.0
+**Última actualización**: 19 de junio de 2026
+**Versión de la extensión**: 2.2.0
 **Desarrollador**: [@686f6c61](https://github.com/686f6c61)
 
 ---

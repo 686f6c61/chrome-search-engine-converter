@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Search Engine Converter v2.1.0 - Popup Controller
+ * Search Engine Converter v2.2.0 - Popup Controller
  * ============================================================================
  *
  * @file        popup.js
@@ -12,8 +12,8 @@
  * @author      @686f6c61
  * @repository  https://github.com/686f6c61/chrome-search-engine-converter
  * @license     MIT License
- * @version     2.1.0
- * @date        2025-01-18
+ * @version     2.2.0
+ * @date        2026-03-05
  *
  * @requires    engines.js - Registro centralizado (SEARCH_ENGINES, buildSearchUrl,
  *              extractQuery, detectEngine, isImageSearch, STORAGE_KEY)
@@ -27,6 +27,23 @@
 /* ============================================================================
  * ESTADO Y CONFIGURACION GLOBAL
  * ============================================================================ */
+
+import {
+  SEARCH_ENGINES,
+  DEFAULT_CONFIG,
+  DEFAULT_SEARCH_ENGINE_ID,
+  DOMAIN_DEFAULTS,
+  STORAGE_KEY,
+  validateDomain,
+  normalizeDefaultSearchEngine,
+  buildSearchUrl,
+  extractQuery,
+  detectEngine,
+  isImageSearch,
+  CUSTOM_ENGINE_ICONS,
+  validateCustomEngine,
+  getMergedEngines
+} from './engines.js';
 
 /**
  * Estado de configuracion del popup. Se inicializa con valores por defecto
@@ -48,12 +65,13 @@ const DEBOUNCE_SAVE_DELAY = 300;
 /** Timer para debounce de saveConfiguration */
 let _saveDebounceTimer = null;
 
-let configState = {
+const configState = {
   amazonDomain: DOMAIN_DEFAULTS.amazon,
   youtubeDomain: DOMAIN_DEFAULTS.youtube,
   defaultSearchEngine: DEFAULT_SEARCH_ENGINE_ID,
   buttonOrder: [],
-  visibleEngines: { ...DEFAULT_CONFIG }
+  visibleEngines: { ...DEFAULT_CONFIG },
+  customEngines: []
 };
 
 /* ============================================================================
@@ -96,6 +114,17 @@ document.addEventListener('DOMContentLoaded', async function() {
  * ============================================================================ */
 
 /**
+ * Devuelve el mapa completo de motores (predefinidos + personalizados).
+ * Se llama en cada render para incluir los motores personalizados del usuario.
+ */
+function getEngines() {
+  if (typeof getMergedEngines === 'function') {
+    return getMergedEngines(configState.customEngines);
+  }
+  return SEARCH_ENGINES;
+}
+
+/**
  * Genera los botones de motores de busqueda en el contenedor .search-buttons
  * Itera SEARCH_ENGINES y crea un boton por cada motor con su icono y color.
  */
@@ -103,7 +132,8 @@ function renderEngineButtons() {
   const container = document.querySelector('.search-buttons');
   if (!container) return;
 
-  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+  const engines = getEngines();
+  Object.entries(engines).forEach(([_id, engine]) => {
     const button = document.createElement('button');
     button.id = engine.buttonId;
     button.className = 'search-button engine-button';
@@ -141,7 +171,8 @@ function renderVisibilityCheckboxes() {
   const container = document.getElementById('visibilityCheckboxes');
   if (!container) return;
 
-  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+  const engines = getEngines();
+  Object.entries(engines).forEach(([id, engine]) => {
     const label = document.createElement('label');
     label.style.cssText = 'display: flex; align-items: center; font-size: 13px;';
 
@@ -164,7 +195,8 @@ function renderDefaultEngineOptions() {
   const select = document.getElementById('defaultSearchEngine');
   if (!select) return;
 
-  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+  const engines = getEngines();
+  Object.entries(engines).forEach(([id, engine]) => {
     const option = document.createElement('option');
     option.value = id;
     option.textContent = engine.name;
@@ -360,6 +392,10 @@ function applySavedConfiguration(savedConfig) {
   configState.defaultSearchEngine = normalizeDefaultSearchEngine(savedConfig.defaultSearchEngine);
   configState.visibleEngines = sanitizeVisibleEngines(savedConfig.visibleEngines);
   configState.buttonOrder = sanitizeButtonOrder(savedConfig.buttonOrder);
+
+  if (Array.isArray(savedConfig.customEngines)) {
+    configState.customEngines = savedConfig.customEngines;
+  }
 }
 
 /**
@@ -427,8 +463,9 @@ function saveConfiguration() {
  *   - Boton guardar
  */
 function setupEventListeners() {
-  // Botones de motores: generar desde SEARCH_ENGINES
-  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+  // Botones de motores: generar desde el mapa mergeado
+  const engines = getEngines();
+  Object.entries(engines).forEach(([id, engine]) => {
     const button = document.getElementById(engine.buttonId);
     if (button) {
       button.addEventListener('click', () => handleEngineConversion(id));
@@ -444,6 +481,7 @@ function setupEventListeners() {
       configPanel.classList.toggle('visible');
       const isOpen = configPanel.classList.contains('visible');
       configToggleButton.setAttribute('aria-expanded', String(isOpen));
+      configPanel.setAttribute('aria-hidden', String(!isOpen));
       configToggleButton.textContent = '';
       const icon = document.createElement('i');
       icon.setAttribute('aria-hidden', 'true');
@@ -506,6 +544,23 @@ function setupEventListeners() {
       showNotification('Configuración guardada', 'success');
     });
   }
+
+  // Exportar configuracion
+  const exportButton = document.getElementById('exportConfigButton');
+  if (exportButton) {
+    exportButton.addEventListener('click', exportConfiguration);
+  }
+
+  // Importar configuracion
+  const importButton = document.getElementById('importConfigButton');
+  const importFileInput = document.getElementById('importConfigFile');
+  if (importButton && importFileInput) {
+    importButton.addEventListener('click', () => importFileInput.click());
+    importFileInput.addEventListener('change', importConfiguration);
+  }
+
+  // Motores personalizados
+  setupCustomEngines();
 }
 
 /* ============================================================================
@@ -539,14 +594,14 @@ function handleEngineConversion(targetEngine) {
     const currentUrl = activeTab.url;
 
     const imgSearch = isImageSearch(currentUrl);
-    let query = extractQuery(currentUrl);
+    const query = extractQuery(currentUrl);
 
     if (!query) {
       updateStatus('No se detectó ninguna búsqueda', 'error');
       return;
     }
 
-    const targetUrl = buildSearchUrl(targetEngine, query, imgSearch, configState);
+    const targetUrl = buildSearchUrl(targetEngine, query, imgSearch, configState, configState.customEngines);
 
     if (targetUrl) {
       chrome.tabs.create({ url: targetUrl });
@@ -614,10 +669,11 @@ function checkCurrentPage() {
  * Despues aplica el orden personalizado si existe.
  */
 function updateEngineButtonVisibility() {
-  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
+  const engines = getEngines();
+  Object.entries(engines).forEach(([id, engine]) => {
     const button = document.getElementById(engine.buttonId);
     if (button) {
-      button.style.display = configState.visibleEngines[id] ? '' : 'none';
+      button.style.display = configState.visibleEngines[id] !== false ? '' : 'none';
     }
   });
 
@@ -688,8 +744,9 @@ function updateOrderList() {
 }
 
 function getVisibleEngineIdsInOrder() {
+  const engines = getEngines();
   const buttonIdToEngineId = new Map(
-    Object.entries(SEARCH_ENGINES).map(([id, engine]) => [engine.buttonId, id])
+    Object.entries(engines).map(([id, engine]) => [engine.buttonId, id])
   );
 
   const orderedVisibleEngineIds = [];
@@ -732,7 +789,7 @@ function applyButtonOrder() {
     }
   });
 
-  Object.values(SEARCH_ENGINES).forEach((engine) => {
+  Object.values(getEngines()).forEach((engine) => {
     const button = document.getElementById(engine.buttonId);
     if (button && button.style.display !== 'none' && !appendedButtonIds.has(engine.buttonId)) {
       orderedButtons.push(button);
@@ -766,13 +823,13 @@ function setupQuickSearch() {
   if (!searchInput) return;
 
   searchInput.addEventListener('input', function() {
-    clearButton.style.display = searchInput.value ? 'block' : 'none';
+    clearButton.classList.toggle('visible', !!searchInput.value);
   });
 
   if (clearButton) {
     clearButton.addEventListener('click', function() {
       searchInput.value = '';
-      clearButton.style.display = 'none';
+      clearButton.classList.remove('visible');
       searchInput.focus();
     });
   }
@@ -800,8 +857,9 @@ function updateQuickSearchEngines() {
     select.removeChild(select.firstChild);
   }
 
-  Object.entries(SEARCH_ENGINES).forEach(([id, engine]) => {
-    if (configState.visibleEngines[id]) {
+  const engines = getEngines();
+  Object.entries(engines).forEach(([id, engine]) => {
+    if (configState.visibleEngines[id] !== false) {
       const option = document.createElement('option');
       option.value = id;
       option.textContent = engine.name;
@@ -825,7 +883,7 @@ function updateQuickSearchEngines() {
  * @param {string} engine - ID del motor seleccionado
  */
 function performQuickSearch(query, engine) {
-  const url = buildSearchUrl(engine, query, false, configState);
+  const url = buildSearchUrl(engine, query, false, configState, configState.customEngines);
   if (!url) {
     showNotification('Motor de búsqueda no válido', 'error');
     return;
@@ -938,7 +996,7 @@ function copyConvertedUrl(targetEngine, button) {
     }
 
     const imgSearch = isImageSearch(currentUrl);
-    const targetUrl = buildSearchUrl(targetEngine, query, imgSearch, configState);
+    const targetUrl = buildSearchUrl(targetEngine, query, imgSearch, configState, configState.customEngines);
 
     if (targetUrl) {
       navigator.clipboard.writeText(targetUrl).then(() => {
@@ -991,13 +1049,275 @@ function setupKeyboardShortcuts() {
       }
     }
 
-    if (e.ctrlKey && e.key === 'k') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
       document.getElementById('searchModeButton').click();
     }
 
     if (e.key === 'Escape') {
       window.close();
+    }
+  });
+}
+
+/* ============================================================================
+ * EXPORTAR / IMPORTAR CONFIGURACION
+ * ============================================================================
+ * Permite al usuario guardar su configuracion como JSON y restaurarla en
+ * otra instalacion o navegador. Util para reinstalaciones o migraciones.
+ * ============================================================================ */
+
+/**
+ * Exporta la configuracion actual del usuario como un fichero JSON descargable.
+ * El fichero incluye todos los campos de configState y un identificador de
+ * formato para futuras migraciones.
+ */
+function exportConfiguration() {
+  const exportData = {
+    format: 'search-engine-converter-config',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    config: configState
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'search-engine-converter-config.json';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showNotification('Configuración exportada', 'success');
+}
+
+/**
+ * Importa una configuracion desde un fichero JSON seleccionado por el usuario.
+ * Valida el formato y los campos antes de aplicarlos. Si hay datos invalidos,
+ * se ignoran silenciosamente y se notifica el error.
+ *
+ * @param {Event} event - Evento change del input file
+ */
+function importConfiguration(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+
+      if (!data || data.format !== 'search-engine-converter-config' || !data.config) {
+        showNotification('Fichero no válido: formato incorrecto', 'error');
+        return;
+      }
+
+      applySavedConfiguration(data.config);
+      applyConfigToUI();
+      updateEngineButtonVisibility();
+      updateOrderList();
+      updateQuickSearchEngines();
+      saveConfiguration();
+
+      showNotification('Configuración importada correctamente', 'success');
+    } catch (_) {
+      showNotification('Error al leer el fichero JSON', 'error');
+    }
+
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================================
+ * MOTORES PERSONALIZADOS DEL USUARIO
+ * ============================================================================
+ * Permite al usuario anadir motores de busqueda propios con un template URL.
+ * Se guardan en configState.customEngines y se persisten en chrome.storage.
+ * ============================================================================ */
+
+/**
+ * Configura la UI de motores personalizados: puebla el select de iconos,
+ * registra el listener del boton anadir y renderiza la lista inicial.
+ */
+function setupCustomEngines() {
+  const iconSelect = document.getElementById('customEngineIcon');
+  if (iconSelect) {
+    /* Poblar select con los iconos disponibles */
+    const icons = typeof CUSTOM_ENGINE_ICONS !== 'undefined'
+      ? CUSTOM_ENGINE_ICONS
+      : ['fas fa-search'];
+    icons.forEach(iconClass => {
+      const option = document.createElement('option');
+      option.value = iconClass;
+      option.textContent = iconClass.replace('fas fa-', '');
+      iconSelect.appendChild(option);
+    });
+  }
+
+  const addButton = document.getElementById('addCustomEngineButton');
+  if (addButton) {
+    addButton.addEventListener('click', addCustomEngine);
+  }
+
+  renderCustomEngineList();
+}
+
+/**
+ * Anade un motor personalizado a configState.customEngines tras validarlo.
+ * Si la validacion falla, muestra una notificacion de error.
+ */
+function addCustomEngine() {
+  const nameInput = document.getElementById('customEngineName');
+  const urlInput = document.getElementById('customEngineUrl');
+  const iconSelect = document.getElementById('customEngineIcon');
+  const colorInput = document.getElementById('customEngineColor');
+
+  if (!nameInput || !urlInput) return;
+
+  const rawEngine = {
+    name: nameInput.value,
+    searchUrl: urlInput.value,
+    icon: iconSelect ? iconSelect.value : 'fas fa-search',
+    color: colorInput ? colorInput.value : '#4285F4'
+  };
+
+  const validated = typeof validateCustomEngine === 'function'
+    ? validateCustomEngine(rawEngine)
+    : null;
+
+  if (!validated) {
+    showNotification('Datos del motor no válidos. La URL debe empezar por https:// y contener {query}', 'error');
+    return;
+  }
+
+  /* Verificar que no exista ya un motor con el mismo id */
+  if (configState.customEngines.some(e => e.id === validated.id)) {
+    showNotification('Ya existe un motor con ese ID', 'error');
+    return;
+  }
+
+  configState.customEngines.push(validated);
+  saveConfiguration();
+
+  /* Limpiar formulario */
+  nameInput.value = '';
+  urlInput.value = '';
+
+  /* Re-renderizar todo para que el nuevo motor aparezca */
+  rerenderAllEngines();
+  showNotification('Motor personalizado añadido', 'success');
+}
+
+/**
+ * Elimina un motor personalizado por su id.
+ * @param {string} engineId - ID del motor a eliminar
+ */
+function removeCustomEngine(engineId) {
+  configState.customEngines = configState.customEngines.filter(e => e.id !== engineId);
+
+  /* Limpiar visibilidad y orden si referencian el motor eliminado */
+  if (configState.visibleEngines[engineId] !== undefined) {
+    delete configState.visibleEngines[engineId];
+  }
+  const buttonId = engineId + 'Button';
+  configState.buttonOrder = configState.buttonOrder.filter(id => id !== buttonId);
+
+  saveConfiguration();
+  rerenderAllEngines();
+  showNotification('Motor personalizado eliminado', 'info');
+}
+
+/**
+ * Renderiza la lista de motores personalizados en el panel de configuracion.
+ * Cada item muestra nombre, icono y boton de eliminar.
+ */
+function renderCustomEngineList() {
+  const list = document.getElementById('customEngineList');
+  if (!list) return;
+
+  while (list.firstChild) {
+    list.removeChild(list.firstChild);
+  }
+
+  if (!configState.customEngines || configState.customEngines.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'button-order-item';
+    empty.style.opacity = '0.6';
+    empty.textContent = 'No hay motores personalizados';
+    list.appendChild(empty);
+    return;
+  }
+
+  configState.customEngines.forEach(engine => {
+    const li = document.createElement('li');
+    li.className = 'button-order-item custom-engine-item';
+
+    const left = document.createElement('span');
+    left.style.display = 'flex';
+    left.style.alignItems = 'center';
+    left.style.overflow = 'hidden';
+
+    const icon = document.createElement('i');
+    icon.className = engine.icon;
+    icon.style.color = engine.color;
+    icon.style.marginRight = '8px';
+    icon.setAttribute('aria-hidden', 'true');
+    left.appendChild(icon);
+    left.appendChild(document.createTextNode(engine.name));
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'custom-engine-delete';
+    deleteBtn.type = 'button';
+    deleteBtn.setAttribute('aria-label', 'Eliminar ' + engine.name);
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', () => removeCustomEngine(engine.id));
+
+    li.appendChild(left);
+    li.appendChild(deleteBtn);
+    list.appendChild(li);
+  });
+}
+
+/**
+ * Re-renderiza todos los elementos que dependen del registro de motores:
+ * botones, checkboxes, selects, lista de orden y lista de personalizados.
+ * Se llama tras anadir o eliminar un motor personalizado.
+ */
+function rerenderAllEngines() {
+  /* Limpiar contenedores */
+  const buttonsContainer = document.querySelector('.search-buttons');
+  const visibilityContainer = document.getElementById('visibilityCheckboxes');
+  const defaultSelect = document.getElementById('defaultSearchEngine');
+
+  if (buttonsContainer) {
+    while (buttonsContainer.firstChild) buttonsContainer.removeChild(buttonsContainer.firstChild);
+  }
+  if (visibilityContainer) {
+    while (visibilityContainer.firstChild) visibilityContainer.removeChild(visibilityContainer.firstChild);
+  }
+  if (defaultSelect) {
+    while (defaultSelect.firstChild) defaultSelect.removeChild(defaultSelect.firstChild);
+  }
+
+  /* Re-renderizar */
+  renderEngineButtons();
+  renderVisibilityCheckboxes();
+  renderDefaultEngineOptions();
+  applyConfigToUI();
+  updateEngineButtonVisibility();
+  updateOrderList();
+  updateQuickSearchEngines();
+  renderCustomEngineList();
+
+  /* Re-registrar listeners de botones */
+  const engines = getEngines();
+  Object.entries(engines).forEach(([id, engine]) => {
+    const button = document.getElementById(engine.buttonId);
+    if (button) {
+      button.addEventListener('click', () => handleEngineConversion(id));
     }
   });
 }
