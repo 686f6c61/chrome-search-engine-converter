@@ -101,15 +101,38 @@ export default [
     rules: sharedRules
   },
   {
+    files: ['extension/config.js', 'extension/ui.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+        chrome: 'readonly'
+      }
+    },
+    rules: sharedRules
+  },
+  {
     files: ['extension/popup.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: {
         ...globals.browser,
+        chrome: 'readonly'
+      }
+    },
+    rules: sharedRules
+  },
+  {
+    files: ['extension/options.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
         chrome: 'readonly',
-        Sortable: 'readonly',
-        html2canvas: 'readonly'
+        Sortable: 'readonly'
       }
     },
     rules: sharedRules

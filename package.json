@@ -1,16 +1,16 @@
 {
   "name": "chrome-search-engine-converter",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "description": "Chrome extension to convert searches across multiple engines",
   "scripts": {
-    "check:syntax": "node --input-type=module --check < extension/engines.js && node --input-type=module --check < extension/background.js && node --input-type=module --check < extension/popup.js",
-    "test": "node --test tests/engines.smoke.test.cjs tests/engines.custom.test.cjs tests/background.test.cjs",
+    "check:syntax": "node --input-type=module --check < extension/engines.js && node --input-type=module --check < extension/background.js && node --input-type=module --check < extension/config.js && node --input-type=module --check < extension/ui.js && node --input-type=module --check < extension/popup.js && node --input-type=module --check < extension/options.js",
+    "test": "node --test tests/engines.smoke.test.cjs tests/engines.custom.test.cjs tests/background.test.cjs tests/config.test.cjs",
     "check": "npm run check:syntax && npm run test",
     "lint": "eslint extension/ tests/",
     "lint:fix": "eslint --fix extension/ tests/",
-    "test:coverage": "node --test --experimental-test-coverage tests/engines.smoke.test.cjs tests/engines.custom.test.cjs tests/background.test.cjs",
+    "test:coverage": "node --test --experimental-test-coverage tests/engines.smoke.test.cjs tests/engines.custom.test.cjs tests/background.test.cjs tests/config.test.cjs",
     "build": "node scripts/build-zip.mjs",
     "ci": "npm run lint && npm run check:syntax && npm run test"
   },

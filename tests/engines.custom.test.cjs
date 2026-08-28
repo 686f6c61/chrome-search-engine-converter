@@ -12,7 +12,7 @@ function loadEnginesModule() {
   let source = fs.readFileSync(enginesPath, 'utf8');
   /* Strip export keywords para poder cargar en VM (CommonJS) */
   source = source.replace(/\bexport\s+(const|function|let|var|class)\b/g, '$1');
-  const context = {};
+  const context = { URL };
 
   vm.createContext(context);
   vm.runInContext(
@@ -242,4 +242,63 @@ test('buildSearchUrl works with custom engine', () => {
   assert.ok(url, 'URL should not be null');
   assert.ok(url.includes('https://mimotor.com/'));
   assert.ok(url.includes('test%20query'));
+});
+/* ============================================================================
+ * REGRESIONES DE SEGURIDAD (auditoria v2.2.0)
+ * ============================================================================ */
+
+test('normalizeDefaultSearchEngine rejects prototype-chain keys', () => {
+  assert.equal(engines.normalizeDefaultSearchEngine('__proto__'), engines.DEFAULT_SEARCH_ENGINE_ID);
+  assert.equal(engines.normalizeDefaultSearchEngine('constructor'), engines.DEFAULT_SEARCH_ENGINE_ID);
+  assert.equal(engines.normalizeDefaultSearchEngine('hasOwnProperty'), engines.DEFAULT_SEARCH_ENGINE_ID);
+});
+
+test('buildSearchUrl returns null for prototype-chain ids instead of throwing', () => {
+  assert.doesNotThrow(() => engines.buildSearchUrl('__proto__', 'q', false, {}, []));
+  assert.equal(engines.buildSearchUrl('__proto__', 'q', false, {}, []), null);
+  assert.equal(engines.buildSearchUrl('constructor', 'q', false, {}, []), null);
+  assert.equal(engines.buildSearchUrl('toString', 'q', false, {}, []), null);
+});
+
+test('buildSearchUrl replaces every {query} occurrence', () => {
+  const custom = [
+    { id: 'custom_multi', name: 'Multi', searchUrl: 'https://multi.com/?a={query}&b={query}' }
+  ];
+  const url = engines.buildSearchUrl('custom_multi', 'hola', false, {}, custom);
+  assert.equal(url, 'https://multi.com/?a=hola&b=hola');
+});
+
+test('detectEngine rejects look-alike hosts and embedded patterns', () => {
+  /* Substrings que antes provocaban falsos positivos con url.includes() */
+  assert.equal(engines.detectEngine('https://nx.com/search?q=x'), null);
+  assert.equal(engines.detectEngine('https://not-google.example.com/search?q=x'), null);
+  assert.equal(engines.detectEngine('https://evil.test/?redirect=https://x.com/search'), null);
+  assert.equal(engines.detectEngine('https://myebay.com/sch/i.html?_nkw=x'), null);
+  /* Los legitimos siguen detectandose */
+  assert.equal(engines.detectEngine('https://x.com/search?q=x'), 'twitter');
+  assert.equal(engines.detectEngine('https://www.ebay.com/sch/i.html?_nkw=x'), 'ebay');
+  assert.equal(engines.detectEngine('https://es.wikipedia.org/wiki/Special:Search?search=x'), 'wikipedia');
+});
+
+test('extractQuery only extracts from recognized search pages', () => {
+  /* q= e i= genericos en paginas cualquiera ya no se capturan */
+  assert.equal(engines.extractQuery('https://blog.example.com/?q=injected'), null);
+  assert.equal(engines.extractQuery('https://shop.example.com/product?i=42'), null);
+  assert.equal(engines.extractQuery('https://www.google.com/search?q=valid'), 'valid');
+});
+
+test('extractQuery supports custom engines via merged map', () => {
+  const custom = [
+    { id: 'custom_mine', name: 'Mine', searchUrl: 'https://mine.example/?termo={query}' }
+  ];
+  const merged = engines.getMergedEngines(custom);
+  assert.equal(engines.extractQuery('https://other.example/?termo=nope', merged), null);
+});
+
+test('buildCustomEnginesMap map has null prototype', () => {
+  const map = engines.buildCustomEnginesMap([
+    { id: 'custom_ok', name: 'Ok', searchUrl: 'https://ok.example/?q={query}' }
+  ]);
+  assert.equal(Object.getPrototypeOf(map), null);
+  assert.ok(map.custom_ok);
 });

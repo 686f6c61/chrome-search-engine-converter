@@ -1,8 +1,8 @@
-# Search Engine Converter v2.2.0
+# Search Engine Converter v2.3.0
 
 Extensión para navegadores Chromium que convierte búsquedas entre 33 motores diferentes manteniendo los términos exactos. Compatible con Chrome, Brave y Edge.
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue)](https://github.com/686f6c61/chrome-search-engine-converter)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Chrome](https://img.shields.io/badge/Chrome-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Brave](https://img.shields.io/badge/Brave-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
 [![Edge](https://img.shields.io/badge/Edge-compatible-brightgreen)](https://github.com/686f6c61/chrome-search-engine-converter)
@@ -15,41 +15,43 @@ Extensión para navegadores Chromium que convierte búsquedas entre 33 motores d
 ### Interfaz principal
 ![Popup principal](assets/screenshot_1_main.png)
 
-Vista principal con motor detectado y botones de conversión en grid de 2 columnas.
+Un único flujo: la caja se autorellena con la búsqueda detectada y la rejilla convierte a cualquier motor. Los primeros nueve botones muestran su atajo Alt+N.
 
-### Búsqueda rápida
-![Búsqueda rápida](assets/screenshot_2_search.png)
+### Búsqueda directa
+![Búsqueda directa](assets/screenshot_2_search.png)
 
-Modo búsqueda con campo de texto y selector de motor para buscar directamente.
+Si la pestaña no es una búsqueda, la caja queda vacía y con el foco: escribe y pulsa un motor (o Enter para usar el predeterminado).
 
-### Configuración
-![Configuración](assets/screenshot_3_config.png)
+### Página de opciones
+![Opciones](assets/screenshot_3_config.png)
 
-Panel de configuración con dominios regionales, visibilidad de motores y checkboxes individuales.
+Toda la configuración vive en su propia página (`options_ui`): motor predeterminado, dominios y visibilidad. Guardado automático, sin botón Guardar.
 
 ### Orden personalizable
 ![Orden de botones](assets/screenshot_4_order.png)
 
-Drag-and-drop para reordenar los motores en el popup.
+Arrastra para reordenar, o mueve con teclado usando las flechas.
 
 ### Todos los motores
 ![33 motores](assets/screenshot_5_all_engines.png)
 
-Los 33 motores de búsqueda soportados.
+Los 33 motores soportados se activan o desactivan individualmente.
 
 ---
 
 ## Funcionalidades
 
-- **Conversión instantánea**: detecta automáticamente el motor de búsqueda actual y permite convertir a cualquier otro motor soportado
+- **Conversión instantánea**: detecta automáticamente el motor de búsqueda actual, autorellena la caja de búsqueda y permite convertir a cualquier otro motor soportado
 - **33 motores**: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia, X (Twitter), GitHub, GitLab, Stack Overflow, Reddit, Pinterest, Startpage, Ecosia, Qwant, Yandex, Baidu, eBay, AliExpress, Etsy, Google Scholar, Internet Archive, Wolfram Alpha, Spotify, SoundCloud, Vimeo, LinkedIn, TikTok, Perplexity, Kagi, SearXNG, You.com
-- **Búsqueda rápida**: escribe un término y busca en cualquier motor sin necesidad de navegar a su página
+- **Búsqueda directa**: escribe un término y busca en cualquier motor sin necesidad de navegar a su página; Enter usa el motor predeterminado
 - **Menú contextual mejorado**: acción rápida con motor predeterminado + submenú completo para elegir cualquier motor
 - **Detección de imágenes**: si estás en búsqueda de imágenes, la conversión mantiene el modo imágenes
 - **Copiar URL**: copia la URL convertida al portapapeles sin abrir nueva pestaña
 - **Atajos de teclado**: Alt+1-9 conversión directa, Ctrl/Cmd+K búsqueda rápida, ESC cerrar popup
 - **Atajos globales**: Ctrl/Cmd+Shift+S convierte la búsqueda actual al motor predeterminado sin abrir el popup (configurable en `chrome://extensions/shortcuts`)
-- **Personalización**: motores visibles, orden drag-and-drop, dominios regionales (Amazon, YouTube)
+- **Página de opciones**: configuración completa fuera del popup (motor predeterminado, dominios regionales, visibilidad, orden, copia de seguridad y motores personalizados), con autoguardado e indicador visual
+- **Interfaz i18n**: todos los textos de la interfaz traducidos al inglés y al español (`chrome.i18n`), como el manifest
+- **Personalización**: motores visibles, orden drag-and-drop (con alternativa por teclado), dominios regionales (Amazon, YouTube), pistas Alt+N en los botones
 - **Exportar/importar configuración**: guarda tus preferencias como JSON y restáuralas en otra instalación
 - **Modo oscuro**: se adapta automáticamente al tema del sistema (`prefers-color-scheme: dark`)
 - **Accesibilidad**: navegación completa por teclado, ARIA labels, soporte para lectores de pantalla, respeto a `prefers-reduced-motion`
@@ -81,7 +83,7 @@ git clone https://github.com/686f6c61/chrome-search-engine-converter.git
 npm test
 ```
 
-Ejecuta los tests con el runner nativo de Node.js (`node:test`). Los tests verifican el registro de motores, funciones de búsqueda, validación de dominios, detección de motores y casos edge (URLs malformadas, dominios inválidos).
+Ejecuta 108 tests con el runner nativo de Node.js (`node:test`). Los tests verifican el registro de motores, funciones de búsqueda, validación de dominios, detección de motores, saneado de la configuración compartida (popup/opciones) y casos edge (URLs malformadas, dominios inválidos, ids de la cadena de prototipo).
 
 ### Cobertura
 
@@ -121,14 +123,20 @@ chrome-search-engine-converter/
     manifest.json            # Manifest V3, permisos mínimos, i18n
     engines.js               # Registro centralizado de 33 motores (SSOT)
     background.js            # Service Worker (menú contextual + atajos globales)
-    popup.html               # Interfaz del popup (esqueleto mínimo)
-    popup.js                 # Controlador del popup (genera HTML dinámico)
-    popup.css                # Estilos del popup (con modo oscuro)
+    popup.html               # Popup: flujo único detección-búsqueda (esqueleto mínimo)
+    popup.js                 # Controlador del popup
+    popup.css                # Estilos del popup
+    options.html             # Página de opciones (options_ui)
+    options.js               # Controlador de opciones (autoguardado, reorden, personalizados)
+    options.css              # Estilos de la página de opciones
+    config.js                # Estado de configuración compartido (saneado + persistencia)
+    ui.js                    # Utilidades de UI compartidas (i18n por atributos, notificaciones)
     Sortable.min.js          # Librería drag-and-drop (local, 45 KB)
     privacy-policy.html      # Política de privacidad (versión Web Store)
     css/
       fontawesome.min.css    # Font Awesome 6 subset (37 iconos, 6.5 KB)
       fonts.css              # Declaraciones @font-face
+      ui.css                 # Tokens de color, modo oscuro y notificaciones compartidos
     fonts/
       fa-solid-900.woff2     # Iconos sólidos (subset)
       fa-brands-400.woff2    # Iconos de marcas (subset)
@@ -138,10 +146,10 @@ chrome-search-engine-converter/
   scripts/
     build-zip.mjs            # Empaquetado a ZIP para Web Store
   tests/
-    engines.smoke.test.cjs   # Tests de funciones críticas (58 tests)
-  docs/
-    audits/
-      AUDIT-2026-03-05.md    # Auditoría técnica completa
+    engines.smoke.test.cjs   # Tests de funciones críticas
+    engines.custom.test.cjs  # Tests de motores personalizados y regresiones de seguridad
+    background.test.cjs      # Tests del service worker con mocks de chrome.*
+    config.test.cjs          # Tests del saneado de configuración compartido
   .editorconfig              # Consistencia de indentación entre editores
   .gitignore
   eslint.config.js           # ESLint flat config (reglas de seguridad)
@@ -156,8 +164,9 @@ chrome-search-engine-converter/
 
 ### Arquitectura
 
-- **engines.js** es la única fuente de verdad (SSOT) para todos los motores. Define configuración, URLs, patrones de detección y funciones de búsqueda/extracción. Lo consumen tanto `background.js` como `popup.js` mediante `importScripts()` y `<script>`.
-- **popup.js** genera todo el HTML dinámicamente desde `SEARCH_ENGINES` - botones, checkboxes, selects, lista de orden.
+- **engines.js** es la única fuente de verdad (SSOT) para todos los motores. Define configuración, URLs, patrones de detección y funciones de búsqueda/extracción. Lo consumen `background.js`, `popup.js`, `config.js` y `options.js` como módulos ES.
+- **config.js** centraliza carga, saneado y persistencia del estado; popup y opciones comparten la misma lógica de validación.
+- **popup.js** genera la rejilla dinámicamente desde el registro combinado (predefinidos + personalizados) y detecta la búsqueda de la pestaña activa.
 - **background.js** crea los menús contextuales, gestiona las búsquedas desde el clic derecho y los atajos de teclado globales (`chrome.commands`).
 - **_locales/** contiene los mensajes internacionalizados (i18n) en español e inglés. El manifest usa `__MSG_*__` para traducir nombre y descripción.
 - **Cero dependencias externas**: fuentes, iconos y Sortable.min.js están empaquetados localmente. No se carga ningún recurso remoto.

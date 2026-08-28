@@ -8,8 +8,9 @@
  * compartidas entre popup.js y background.js (service worker).
  *
  * Arquitectura:
- *   - popup.html carga este archivo via <script src="engines.js">
- *   - background.js lo carga via importScripts('engines.js')
+ *   - popup.html carga este archivo via <script type="module" src="popup.js">
+ *     (popup.js lo importa como modulo ES)
+ *   - background.js lo carga via import (service worker type: module)
  *   - Ambos consumen las mismas constantes y funciones, evitando duplicacion
  *
  * Seguridad:
@@ -584,23 +585,35 @@ export const DEFAULT_CONFIG = Object.fromEntries(
 
 /**
  * Normaliza un valor de motor por defecto guardado en storage.
- * Soporta formato nuevo (engineId) y legado (buttonId).
+ * Soporta formato nuevo (engineId), legado (buttonId) y motores personalizados.
  *
  * @param {string} value - engineId o buttonId
+ * @param {Array}  [customEngines] - Motores personalizados del usuario (opcional)
  * @returns {string} engineId valido
  */
-export function normalizeDefaultSearchEngine(value) {
+export function normalizeDefaultSearchEngine(value, customEngines) {
   if (typeof value !== 'string' || !value) {
     return DEFAULT_SEARCH_ENGINE_ID;
   }
 
-  if (SEARCH_ENGINES[value]) {
+  /* Object.hasOwn evita que '__proto__'/'constructor' pasen como validos */
+  if (Object.hasOwn(SEARCH_ENGINES, value)) {
     return value;
   }
 
   for (const [id, engine] of Object.entries(SEARCH_ENGINES)) {
     if (engine.buttonId === value) {
       return id;
+    }
+  }
+
+  if (Array.isArray(customEngines)) {
+    const customMap = buildCustomEnginesMap(customEngines);
+    if (Object.hasOwn(customMap, value)) {
+      return value;
+    }
+    if (Object.values(customMap).some(engine => engine.buttonId === value)) {
+      return value;
     }
   }
 
@@ -625,14 +638,16 @@ export function normalizeDefaultSearchEngine(value) {
  * en el template, previniendo inyeccion de parametros en la URL.
  */
 export function buildSearchUrl(engineId, query, useImageSearch, domainConfig, customEngines) {
-  let engine = SEARCH_ENGINES[engineId];
+  if (typeof engineId !== 'string') return null;
+
+  let engine = Object.hasOwn(SEARCH_ENGINES, engineId) ? SEARCH_ENGINES[engineId] : null;
 
   if (!engine && Array.isArray(customEngines)) {
     const customMap = buildCustomEnginesMap(customEngines);
-    engine = customMap[engineId];
+    engine = Object.hasOwn(customMap, engineId) ? customMap[engineId] : null;
   }
 
-  if (!engine) return null;
+  if (!engine || typeof engine.searchUrl !== 'string') return null;
 
   const encodedQuery = encodeURIComponent(query);
   let template;
@@ -643,7 +658,7 @@ export function buildSearchUrl(engineId, query, useImageSearch, domainConfig, cu
     template = engine.searchUrl;
   }
 
-  let url = template.replace('{query}', encodedQuery);
+  let url = template.replaceAll('{query}', encodedQuery);
 
   /* Motores con dominio configurable (Amazon, YouTube, etc.) */
   if (engine.usesDomain) {
@@ -683,14 +698,20 @@ export function safeDecodeURIComponent(value) {
  * Extrae el termino de busqueda de una URL de motor de busqueda.
  *
  * @param {string} url - URL completa de la pagina activa
+ * @param {Object} [enginesMap] - Mapa de motores a considerar (por defecto SEARCH_ENGINES)
  * @returns {string|null} Termino de busqueda decodificado o null si no se detecta
  *
  * Proceso:
+ *   0. Exige que la URL pertenezca a un motor conocido (evita extraer
+ *      parametros genericos como q= o i= de cualquier pagina web)
  *   1. Primero comprueba si es Spotify (usa path, no query params)
  *   2. Luego itera QUERY_PATTERNS probando cada regex
  *   3. Los '+' se reemplazan por espacios antes de decodificar
  */
-export function extractQuery(url) {
+export function extractQuery(url, enginesMap) {
+  if (typeof url !== 'string' || !url) return null;
+  if (!detectEngine(url, enginesMap)) return null;
+
   /* Caso especial: Spotify usa path en vez de query param (/search/<termino>) */
   const spotifyMatch = url.match(/open\.spotify\.com\/search\/(.+)/);
   if (spotifyMatch) {
@@ -710,19 +731,58 @@ export function extractQuery(url) {
 }
 
 /**
+ * Comprueba si el hostname pertenece al dominio del patron (host exacto
+ * o subdominio directo), evitando falsos positivos de tipo "not-google.com"
+ * o substrings dentro de la URL.
+ *
+ * @param {string} host - hostname ya en minusculas
+ * @param {string} patternHost - host del detectionPattern
+ * @returns {boolean}
+ */
+function hostMatchesPattern(host, patternHost) {
+  return host === patternHost || host.endsWith('.' + patternHost);
+}
+
+/**
  * Detecta que motor de busqueda corresponde a una URL.
  *
  * @param {string} url - URL completa de la pagina activa
+ * @param {Object} [enginesMap] - Mapa de motores (por defecto SEARCH_ENGINES)
  * @returns {string|null} ID del motor detectado o null si no coincide ninguno
  *
- * Compara la URL contra el detectionPattern de cada motor en SEARCH_ENGINES.
- * El orden de iteracion importa: si hay patrones que se solapan (ej: 'google.com'
- * vs 'scholar.google.com'), el mas especifico debe aparecer primero en el objeto.
+ * Parsea la URL y compara hostname + pathname contra el detectionPattern de
+ * cada motor, en lugar de buscar la subcadena en toda la URL. Asi un host
+ * que contenga el patron (ej: "nx.com/search" vs "x.com/search") o un
+ * parametro que lo contenga ya no provocan falsos positivos.
+ * El orden de iteracion importa: si hay patrones que se solapan (ej:
+ * 'google.com' vs 'scholar.google.com'), el mas especifico debe aparecer
+ * primero en el objeto.
  */
-export function detectEngine(url) {
-  for (const [id, engine] of Object.entries(SEARCH_ENGINES)) {
+export function detectEngine(url, enginesMap) {
+  if (typeof url !== 'string' || !url) return null;
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (_) {
+    return null;
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return null;
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const path = parsed.pathname;
+  const engines = enginesMap && typeof enginesMap === 'object' ? enginesMap : SEARCH_ENGINES;
+
+  for (const [id, engine] of Object.entries(engines)) {
+    if (!engine || typeof engine.detectionPattern !== 'string' || !engine.detectionPattern) {
+      continue;
+    }
+
     if (id === 'youtube') {
-      if (/https?:\/\/(?:www\.)?youtube\.[^/]+\/results(?:[/?#]|$)/.test(url)) {
+      if (/^https?:\/\/(?:www\.)?youtube\.[^/]+\/results(?:[/?#]|$)/.test(url)) {
         return id;
       }
       continue;
@@ -735,7 +795,17 @@ export function detectEngine(url) {
       continue;
     }
 
-    if (url.includes(engine.detectionPattern)) {
+    const slashIndex = engine.detectionPattern.indexOf('/');
+    const patternHost = slashIndex === -1
+      ? engine.detectionPattern
+      : engine.detectionPattern.slice(0, slashIndex);
+    const patternPath = slashIndex === -1 ? '' : engine.detectionPattern.slice(slashIndex);
+
+    if (!patternHost || !hostMatchesPattern(host, patternHost.toLowerCase())) {
+      continue;
+    }
+
+    if (!patternPath || path === patternPath || path.startsWith(patternPath + '/')) {
       return id;
     }
   }
@@ -795,24 +865,29 @@ export function validateDomain(type, value) {
 /** Prefijo para IDs de motores personalizados */
 export const CUSTOM_ENGINE_ID_PREFIX = 'custom_';
 
-/** Iconos de Font Awesome disponibles en el subset para motores personalizados */
+/**
+ * Iconos disponibles para motores personalizados.
+ * Limitados al subset empaquetado en css/fontawesome.min.css + glifos de la
+ * fuente Roboto (flechas y signo mas se renderizan como texto). Cualquier clase
+ * que no este en el subset se veria como un cuadrado vacio.
+ */
 export const CUSTOM_ENGINE_ICONS = [
   'fas fa-search',
-  'fas fa-globe',
-  'fas fa-bookmark',
-  'fas fa-star',
-  'fas fa-heart',
-  'fas fa-flag',
-  'fas fa-rocket',
-  'fas fa-flask',
-  'fas fa-code',
-  'fas fa-terminal',
-  'fas fa-database',
-  'fas fa-server',
-  'fas fa-cube',
-  'fas fa-bolt',
-  'fas fa-book',
-  'fas fa-pen'
+  'fas fa-right-left',
+  'fas fa-cog',
+  'fas fa-copy',
+  'fas fa-archive',
+  'fas fa-brain',
+  'fas fa-calculator',
+  'fas fa-graduation-cap',
+  'fas fa-shield-halved',
+  'fas fa-tree',
+  'fas fa-store',
+  'fas fa-bag-shopping',
+  'fas fa-cart-shopping',
+  'fas fa-info-circle',
+  'fas fa-circle-check',
+  'fas fa-exchange-alt'
 ];
 
 /** Colores predefinidos para motores personalizados */
@@ -893,7 +968,8 @@ export function validateCustomEngine(engine) {
 export function buildCustomEnginesMap(customEngines) {
   if (!Array.isArray(customEngines)) return {};
 
-  const map = {};
+  /* Prototipo nulo: ids como '__proto__' no podrian corromper el mapa */
+  const map = Object.create(null);
   for (const raw of customEngines) {
     const validated = validateCustomEngine(raw);
     if (validated && !map[validated.id]) {

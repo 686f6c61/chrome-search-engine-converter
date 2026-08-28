@@ -120,7 +120,7 @@ function loadBackgroundModule() {
     windows: { WINDOW_ID_CURRENT: -2 }
   };
 
-  const context = { chrome: mockChrome, console };
+  const context = { chrome: mockChrome, console, URL };
   vm.createContext(context);
 
   /* Cargar engines.js primero */

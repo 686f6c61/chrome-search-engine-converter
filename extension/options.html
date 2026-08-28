@@ -1,0 +1,122 @@
+<!--
+  ============================================================================
+  Search Engine Converter v2.3.0 - Pagina de opciones
+  ============================================================================
+
+  @file        options.html
+  @description Configuracion completa de la extension en una pagina real
+               (options_ui): motor predeterminado, dominios regionalizables,
+               visibilidad y orden de botones, copia de seguridad y motores
+               personalizados. El guardado es automatico; no hay boton Guardar.
+
+  @author      @686f6c61
+  @repository  https://github.com/686f6c61/chrome-search-engine-converter
+  @license     MIT License
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title data-i18n="optTitle">Configuración</title>
+  <link rel="stylesheet" href="css/fontawesome.min.css">
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/ui.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header class="page-header">
+    <h1><i class="fas fa-exchange-alt" aria-hidden="true"></i> <span data-i18n="appTitle">Search Engine Converter</span></h1>
+    <p id="saveState" class="save-state" role="status" aria-live="polite"></p>
+  </header>
+
+  <main class="layout">
+    <!-- Motor predeterminado -->
+    <section class="card" aria-labelledby="sec-default">
+      <h2 id="sec-default" data-i18n="optDefaultTitle">Motor predeterminado</h2>
+      <p class="hint" data-i18n="optDefaultHint">Se usa para la accion rapida del menu contextual, Enter en el popup y la omnibox.</p>
+      <select id="defaultSearchEngine" class="field"></select>
+    </section>
+
+    <!-- Dominios -->
+    <section class="card" aria-labelledby="sec-domains">
+      <h2 id="sec-domains" data-i18n="optDomainsTitle">Dominios</h2>
+      <div class="field-row">
+        <label for="amazonDomain" data-i18n="optAmazonDomain">Dominio de Amazon</label>
+        <select id="amazonDomain" class="field">
+          <option value="es">España (.es)</option>
+          <option value="com">USA (.com)</option>
+          <option value="co.uk">Reino Unido (.co.uk)</option>
+          <option value="de">Alemania (.de)</option>
+          <option value="fr">Francia (.fr)</option>
+          <option value="it">Italia (.it)</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label for="youtubeDomain" data-i18n="optYoutubeDomain">Dominio de YouTube</label>
+        <select id="youtubeDomain" class="field">
+          <option value="com">Global (.com)</option>
+          <option value="es">España (.es)</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Visibilidad -->
+    <section class="card" aria-labelledby="sec-visibility">
+      <h2 id="sec-visibility" data-i18n="optVisibilityTitle">Motores visibles</h2>
+      <p class="hint" data-i18n="optVisibilityHint">Elige que botones aparecen en el popup.</p>
+      <div id="visibilityCheckboxes" class="visibility-grid"></div>
+    </section>
+
+    <!-- Orden -->
+    <section class="card" aria-labelledby="sec-order">
+      <h2 id="sec-order" data-i18n="optOrderTitle">Orden de los botones</h2>
+      <p class="hint" data-i18n="optOrderHint">Arrastra, o usa las flechas para mover con teclado. La posicion 1-9 tiene atajo Alt+N en el popup.</p>
+      <ul id="buttonOrderList" class="order-list"></ul>
+    </section>
+
+    <!-- Motores personalizados -->
+    <section class="card" aria-labelledby="sec-custom">
+      <h2 id="sec-custom" data-i18n="optCustomTitle">Motores personalizados</h2>
+      <p class="hint" data-i18n="optCustomHint">Añade tus propios motores. La URL debe empezar por https:// y contener {query} donde irá el término de búsqueda.</p>
+      <form id="customEngineForm" class="custom-form" novalidate>
+        <input type="text" id="customEngineName" class="field" maxlength="30" data-i18n-placeholder="optCustomNamePh" required />
+        <input type="url" id="customEngineUrl" class="field" placeholder="https://mimotor.com/?q={query}" required />
+        <div class="custom-row">
+          <select id="customEngineIcon" class="field custom-icon-select" data-i18n-aria="optCustomIcon"></select>
+          <input type="color" id="customEngineColor" value="#4285F4" class="custom-color" data-i18n-aria="optCustomColor" />
+          <button type="submit" class="btn btn-primary" id="addCustomEngineButton">
+          <span class="glyph" aria-hidden="true">+</span> <span data-i18n="optCustomAdd">Añadir</span>
+          </button>
+        </div>
+        <p id="customPreview" class="preview" aria-live="polite"></p>
+      </form>
+      <ul id="customEngineList" class="order-list custom-list"></ul>
+    </section>
+
+    <!-- Copia de seguridad -->
+    <section class="card" aria-labelledby="sec-backup">
+      <h2 id="sec-backup" data-i18n="optBackupTitle">Copia de seguridad</h2>
+      <p class="hint" data-i18n="optBackupHint">Exporta tu configuración para guardarla o transferirla a otro equipo.</p>
+      <div class="field-row field-row-inline">
+        <button id="exportConfigButton" class="btn" type="button">
+          <span class="glyph" aria-hidden="true">&#8595;</span> <span data-i18n="optExport">Exportar</span>
+        </button>
+        <button id="importConfigButton" class="btn" type="button">
+          <span class="glyph" aria-hidden="true">&#8593;</span> <span data-i18n="optImport">Importar</span>
+        </button>
+        <input type="file" id="importConfigFile" accept="application/json,.json" class="hidden-file-input" />
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <span id="versionLabel"></span> · <a href="https://github.com/686f6c61/chrome-search-engine-converter" target="_blank" rel="noopener noreferrer" data-i18n="githubLink">GitHub</a>
+  </footer>
+
+  <script src="Sortable.min.js"></script>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

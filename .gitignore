@@ -29,3 +29,11 @@ coverage/
 
 # Auditorias internas (no se publican en el repo)
 docs/
+
+# Entornos y variables locales
+.env
+.env.*
+
+# Artefactos accidentales de npm/eslint
+*.tgz
+.eslintcache

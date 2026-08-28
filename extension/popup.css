@@ -1,28 +1,11 @@
 /**
  * ============================================================================
- * popup.css - Estilos del popup de la extension
+ * popup.css - Estilos del popup (v2.3.0)
  * ============================================================================
  *
- * Todos los estilos visuales del popup. No contiene colores especificos de
- * cada motor de busqueda (esos se aplican dinamicamente via inline styles
- * desde engines.js en popup.js).
- *
- * Estructura de secciones:
- *   1. Base (body, fuentes)
- *   2. Header y logo
- *   3. Status indicator
- *   4. Quick search (input + select)
- *   5. Mode toggle (Convertir / Buscar)
- *   6. Grid de botones de motores (responsive)
- *   7. Copy buttons (overlay en hover)
- *   8. Panel de configuracion
- *   9. Lista de orden con SortableJS
- *  10. Footer
- *  11. Animaciones (pulse)
- *
- * Las fuentes se cargan desde archivos locales (ver css/fonts.css):
- *   - Roboto (400, 500, 700) para texto general
- *   - Font Awesome 6 (brands + solid) para iconos
+ * Popup de un unico flujo: barra compacta (logo + chip de estado + iconos),
+ * caja de busqueda y rejilla de motores. Los tokens de color y las
+ * notificaciones viven en css/ui.css.
  *
  * @file        popup.css
  * @author      @686f6c61
@@ -30,94 +13,77 @@
  * ============================================================================
  */
 
-/* Extension popup container dimensions and base styling */
 body {
-  width: 320px;
-  padding: 16px;
-  font-family: 'Roboto', sans-serif;
-  background-color: white;
-  margin: 0;
-  color: #212121;
+  width: 340px;
+  padding: 12px;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-/* Header component with logo and title */
-.header {
+/* ============================================================================
+ * Barra superior compacta
+ * ============================================================================ */
+
+.popup-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e0e0e0;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  font-weight: 700;
-  font-size: 18px;
+.popup-logo {
+  font-size: 16px;
+  color: var(--text);
+  flex-shrink: 0;
 }
 
-.logo i {
-  margin-right: 8px;
-  color: #212121;
-}
-
-.logo span.brave {
-  color: #212121;
-}
-
-.logo span.google {
-  color: #4285F4;
-}
-
-/* Status indicator container */
-.status-container {
-  background-color: #f5f5f5;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-}
-
-#status {
+.status-chip {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  display: flex;
-  align-items: center;
+  font-size: 12px;
   font-weight: 500;
-  color: #212121;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: var(--surface-alt);
+  border-radius: 12px;
+  padding: 4px 10px;
 }
 
-#status i {
-  margin-right: 8px;
+.status-chip.detected {
+  color: var(--text);
 }
 
-#status.success {
-  color: #212121;
+.icon-button {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-#status.error {
-  color: #212121;
+.icon-button:hover {
+  background-color: var(--surface-alt);
+  color: var(--text);
 }
 
-#status.warning {
-  color: #212121;
+.icon-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
-/* Quick search container */
-.quick-search-container {
-  margin-bottom: 16px;
-  display: none; /* Hidden by default, shown in search mode */
-}
-
-.quick-search-container.visible {
-  display: block;
-}
+/* ============================================================================
+ * Caja de busqueda
+ * ============================================================================ */
 
 .search-input-wrapper {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .search-icon {
@@ -125,572 +91,164 @@ body {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #757575;
+  color: var(--text-muted);
   pointer-events: none;
+  font-size: 13px;
 }
 
 #quickSearchInput {
   width: 100%;
-  padding: 12px 40px 12px 40px;
-  border: 2px solid #e0e0e0;
+  padding: 10px 36px 10px 34px;
+  border: 2px solid var(--border);
   border-radius: 8px;
   font-family: 'Roboto', sans-serif;
   font-size: 14px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: var(--surface);
+  color: var(--text);
   box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#quickSearchInput::placeholder {
+  color: var(--text-muted);
 }
 
 #quickSearchInput:focus {
   outline: none;
-  border-color: #4285F4;
-  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
-}
-
-/* Clear button is hidden by default; popup.js toggles via .visible */
-#clearSearchButton {
-  display: none;
-}
-#clearSearchButton.visible {
-  display: block;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.15);
 }
 
 .clear-button {
   position: absolute;
-  right: 8px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #757575;
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
+  display: none;
+}
+
+.clear-button.visible {
+  display: block;
 }
 
 .clear-button:hover {
-  background-color: #f5f5f5;
+  background-color: var(--surface-alt);
 }
 
-.quick-engine-select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-family: 'Roboto', sans-serif;
-  font-size: 14px;
-  cursor: pointer;
-  background-color: white;
-  transition: border-color 0.2s ease;
+.clear-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
-.quick-engine-select:focus {
-  outline: none;
-  border-color: #4285F4;
-}
+/* ============================================================================
+ * Rejilla de motores
+ * ============================================================================ */
 
-/* Mode toggle */
-.mode-toggle {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  background-color: #f5f5f5;
-  padding: 4px;
-  border-radius: 8px;
-}
-
-.mode-button {
-  flex: 1;
-  background-color: transparent;
-  color: #212121;
-  border: none;
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.mode-button:hover:not(.active) {
-  background-color: #e8e8e8;
-}
-
-.mode-button.active {
-  background-color: #212121;
-  color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.mode-button i {
-  font-size: 14px;
-}
-
-/* Search engine button grid layout - 2 columns by default to fit long names */
 .search-buttons {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 
-/* For wider popups, show 3 columns */
-@media (min-width: 420px) {
-  .search-buttons {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* For very wide popups, show 4 columns */
-@media (min-width: 560px) {
-  .search-buttons {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  body {
-    width: 520px;
-  }
-}
-
-/* Add hover animation to search buttons */
 .search-button {
   position: relative;
-  overflow: hidden;
-}
-
-.search-button::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  transform: translate(-50%, -50%);
-  transition: width 0.4s, height 0.4s;
-}
-
-.search-button:hover::before {
-  width: 300px;
-  height: 300px;
-}
-
-/* Copy button styles */
-.copy-button {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
-  font-size: 11px;
-  backdrop-filter: blur(5px);
-}
-
-.search-button:hover .copy-button {
-  opacity: 1;
-}
-
-.copy-button:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.copy-button.copied {
-  background: #4CAF50 !important;
-  opacity: 1 !important;
-}
-
-/* Base styling for search engine buttons */
-.search-button {
-  background-color: #212121;
-  color: white;
-  border: none;
-  padding: 10px 8px;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  background-color: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 9px 10px;
+  border-radius: 8px;
   font-family: 'Roboto', sans-serif;
   font-weight: 500;
   font-size: 13px;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  min-width: 0;
+  transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+}
+
+.search-button i {
+  flex-shrink: 0;
+}
+
+.engine-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
 }
 
-.search-button i {
-  margin-right: 6px;
-  flex-shrink: 0;
+.search-button:hover:not(:disabled) {
+  background-color: var(--surface);
+  border-color: var(--accent);
 }
 
-/* Button state styles */
-.search-button:hover {
-  background-color: #000000;
-}
-
-.search-button:active {
+.search-button:active:not(:disabled) {
   transform: scale(0.98);
 }
 
 .search-button:disabled {
-  background-color: #555555;
+  background-color: var(--button-bg-disabled);
+  color: rgba(255, 255, 255, 0.55);
+  border-color: transparent;
   cursor: not-allowed;
 }
 
-/* Configuration toggle section */
-.config-toggle {
-  margin-top: 10px;
-  text-align: center;
+@media (prefers-color-scheme: dark) {
+  .search-button:disabled {
+    color: #666;
+  }
 }
 
-.config-button {
-  background-color: #f5f5f5;
-  color: #212121;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-}
-
-.config-button i {
-  margin-right: 8px;
-}
-
-.config-button:hover {
-  background-color: #e0e0e0;
-}
-
-
-/* Configuration panel component */
-.config-panel {
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  display: none; /* Hidden by default, shown via JS */
-}
-
-.config-panel.visible {
-  display: block !important; /* Overrides default when visible */
-}
-
-.config-panel h3 {
-  margin-top: 0;
-  margin-bottom: 12px;
-  font-size: 16px;
-  color: #212121;
-}
-
-/* Custom engine form in config panel */
-.custom-engine-form {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.custom-engine-input {
-  width: 100%;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  font-family: 'Roboto', sans-serif;
-  font-size: 13px;
-  box-sizing: border-box;
-}
-
-.custom-engine-input:focus-visible {
-  outline: 2px solid #4285F4;
-  outline-offset: 1px;
-}
-
-.custom-engine-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.custom-engine-select {
-  flex: 1;
-  min-width: 80px;
-  padding: 6px;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  font-family: 'Roboto', sans-serif;
-  font-size: 13px;
-  box-sizing: border-box;
-}
-
-.custom-engine-color {
-  width: 40px;
-  height: 34px;
-  min-width: 40px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 2px;
-  background: white;
-  box-sizing: border-box;
-}
-
-.custom-engine-list {
-  margin-top: 8px;
-  max-height: 150px;
-}
-
-.custom-engine-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.custom-engine-delete {
-  background: transparent;
-  border: none;
-  color: #DB4437;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.custom-engine-delete:hover {
-  background-color: rgba(219, 68, 55, 0.1);
-}
-
-/* Default engine select needs extra bottom margin for spacing in config panel */
-.default-engine-select {
-  margin-bottom: 12px;
-}
-
-/* Visibility checkboxes grid (2 columns) */
-.visibility-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-/* Configuration item styling */
-.config-item {
-  margin-bottom: 12px;
-}
-
-.config-item label {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 14px;
-  color: #212121;
-}
-
-.config-item select {
-  width: 100%;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  font-family: 'Roboto', sans-serif;
-  font-size: 14px;
-}
-
-/* Configuration action buttons */
-.config-actions {
-  margin-top: 16px;
-  text-align: right;
-}
-
-/* Import/export button row */
-.import-export-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* Hidden file input (moved out of flex container to avoid layout issues) */
-.hidden-file-input {
-  display: none;
-}
-
-.config-export-button,
-.config-import-button {
-  background-color: #2a2a2a;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 4px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.config-export-button:hover,
-.config-import-button:hover {
-  background-color: #000;
-}
-
-.config-export-button:focus-visible,
-.config-import-button:focus-visible {
-  outline: 2px solid #4285F4;
+.search-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-.config-save-button {
-  background-color: #4285F4;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-family: 'Roboto', sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+/* Pista visual del atajo Alt+N */
+.shortcut-badge {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 3px;
+  pointer-events: none;
 }
 
-  .config-save-button:hover {
-    background-color: #3367D6;
-  }
-
-  .config-export-button,
-  .config-import-button {
-    background-color: #3a3a3a;
-    color: #e0e0e0;
-  }
-
-  .config-export-button:hover,
-  .config-import-button:hover {
-    background-color: #4a4a4a;
-  }
-
-  .custom-engine-input,
-  .custom-engine-select {
-    background-color: #1e1e1e;
-    border-color: #3a3a3a;
-    color: #e0e0e0;
-  }
-
-  .custom-engine-color {
-    background-color: #1e1e1e;
-    border-color: #3a3a3a;
-  }
-
-  .custom-engine-delete {
-    color: #f44336;
-  }
-
-  .custom-engine-delete:hover {
-    background-color: rgba(244, 67, 54, 0.15);
-  }
-
-  .config-description {
-  font-size: 14px;
-  color: #212121;
-  margin-bottom: 8px;
+.search-button:disabled .shortcut-badge {
+  color: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Sortable button list for reordering */
-.button-order-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  background-color: white;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  overflow-y: auto;
-  max-height: 400px;
-}
+/* ============================================================================
+ * Pie
+ * ============================================================================ */
 
-/* Scrollbar styling for order list */
-.button-order-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.button-order-list::-webkit-scrollbar-track {
-  background: #f5f5f5;
-}
-
-.button-order-list::-webkit-scrollbar-thumb {
-  background: #bdbdbd;
-  border-radius: 4px;
-}
-
-.button-order-list::-webkit-scrollbar-thumb:hover {
-  background: #9e9e9e;
-}
-
-.button-order-item {
-  padding: 10px;
-  background-color: white;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  cursor: move;
-  transition: background-color 0.2s ease;
-}
-
-.button-order-item:last-child {
-  border-bottom: none;
-}
-
-.button-order-item:hover {
-  background-color: #f5f5f5;
-}
-
-.button-order-item i.fa-grip-lines {
-  margin-right: 10px;
-  color: #9e9e9e;
-}
-
-.button-order-item i:not(.fa-grip-lines) {
-  margin-right: 8px;
-}
-
-/* Sortable ghost effect */
-.sortable-ghost {
-  opacity: 0.4;
-  background-color: #f0f0f0;
-}
-
-/* Footer component */
 .footer {
   font-size: 11px;
-  color: #757575;
+  color: var(--text-muted);
   text-align: center;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .footer a {
-  color: #4285F4;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -698,233 +256,14 @@ body {
   text-decoration: underline;
 }
 
-/* Focus visible styles for keyboard accessibility (WCAG 2.4.7) */
-.search-button:focus-visible,
-.mode-button:focus-visible,
-.config-button:focus-visible,
-.config-save-button:focus-visible,
-.clear-button:focus-visible,
-.copy-button:focus-visible {
-  outline: 2px solid #4285F4;
-  outline-offset: 2px;
-}
-
-.quick-engine-select:focus-visible,
-#quickSearchInput:focus-visible,
-.config-item select:focus-visible {
-  outline: 2px solid #4285F4;
-  outline-offset: 1px;
-}
-
-/* Make copy button accessible via keyboard (not just hover) */
-.search-button:focus-within .copy-button {
-  opacity: 1;
-}
-
-/* Animation for highlighting interactive elements */
-.pulse {
-  animation: pulse-animation 1s infinite;
-}
-
-@keyframes pulse-animation {
-  0% {
-    box-shadow: 0 0 0 0 rgba(33, 33, 33, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(33, 33, 33, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(33, 33, 33, 0);
-  }
-}
-
-/* Respect user motion preferences (WCAG 2.3.3) */
-@media (prefers-reduced-motion: reduce) {
-  .pulse {
-    animation: none;
-  }
-
-  .search-button::before {
-    transition: none;
-  }
-
-  .search-button,
-  .mode-button,
-  .config-button,
-  .config-save-button,
-  .status-container,
-  .copy-button,
-  .clear-button,
-  #quickSearchInput,
-  .quick-engine-select,
-  .button-order-item {
-    transition: none;
-  }
-}
-
 /* ============================================================================
- * MODO OSCURO (prefers-color-scheme: dark)
- * ============================================================================
- * Activa paleta oscura cuando el usuario tiene tema oscuro en el sistema.
- * Mantiene contraste WCAG AA en todos los elementos.
+ * Movimiento reducido (WCAG 2.3.3)
  * ============================================================================ */
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #1e1e1e;
-    color: #e0e0e0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-  }
-
-  .header {
-    border-bottom-color: #3a3a3a;
-  }
-
-  .logo i {
-    color: #e0e0e0;
-  }
-
-  .status-container {
-    background-color: #2a2a2a;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-
-  #status {
-    color: #e0e0e0;
-  }
-
-  #status.success,
-  #status.error,
-  #status.warning {
-    color: #e0e0e0;
-  }
-
-  .quick-search-container {
-    background-color: transparent;
-  }
-
+@media (prefers-reduced-motion: reduce) {
+  .search-button,
+  .icon-button,
   #quickSearchInput {
-    background-color: #2a2a2a;
-    border-color: #3a3a3a;
-    color: #e0e0e0;
-  }
-
-  #quickSearchInput::placeholder {
-    color: #888;
-  }
-
-  .quick-engine-select {
-    background-color: #2a2a2a;
-    border-color: #3a3a3a;
-    color: #e0e0e0;
-  }
-
-  .mode-toggle {
-    background-color: #2a2a2a;
-  }
-
-  .mode-button {
-    color: #e0e0e0;
-  }
-
-  .mode-button:hover:not(.active) {
-    background-color: #3a3a3a;
-  }
-
-  .mode-button.active {
-    background-color: #e0e0e0;
-    color: #1e1e1e;
-  }
-
-  /* Search buttons stay dark but adjust hover/disabled for contrast */
-  .search-button {
-    background-color: #2a2a2a;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-
-  .search-button:hover {
-    background-color: #3a3a3a;
-  }
-
-  .search-button:disabled {
-    background-color: #1a1a1a;
-    color: #666;
-  }
-
-  .config-button {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-  }
-
-  .config-button:hover {
-    background-color: #3a3a3a;
-  }
-
-  .config-panel {
-    background-color: #2a2a2a;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-
-  .config-panel h3 {
-    color: #e0e0e0;
-  }
-
-  .config-item label {
-    color: #e0e0e0;
-  }
-
-  .config-item select {
-    background-color: #1e1e1e;
-    border-color: #3a3a3a;
-    color: #e0e0e0;
-  }
-
-  .config-description {
-    color: #b0b0b0;
-  }
-
-  .button-order-list {
-    background-color: #1e1e1e;
-    border-color: #3a3a3a;
-  }
-
-  .button-order-item {
-    background-color: #1e1e1e;
-    border-bottom-color: #3a3a3a;
-  }
-
-  .button-order-item:hover {
-    background-color: #2a2a2a;
-  }
-
-  .button-order-list::-webkit-scrollbar-track {
-    background: #1e1e1e;
-  }
-
-  .button-order-list::-webkit-scrollbar-thumb {
-    background: #555;
-  }
-
-  .button-order-list::-webkit-scrollbar-thumb:hover {
-    background: #777;
-  }
-
-  .footer {
-    color: #888;
-    border-top-color: #3a3a3a;
-  }
-
-  .footer a {
-    color: #8ab4f8;
-  }
-
-  /* Focus ring stays blue in both themes for consistency */
-  .search-button:focus-visible,
-  .mode-button:focus-visible,
-  .config-button:focus-visible,
-  .config-save-button:focus-visible,
-  .clear-button:focus-visible,
-  .copy-button:focus-visible {
-    outline-color: #8ab4f8;
+    transition: none;
   }
 }

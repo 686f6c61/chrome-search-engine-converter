@@ -9,7 +9,7 @@ function loadEnginesModule() {
   let source = fs.readFileSync(enginesPath, 'utf8');
   /* Strip export keywords para poder cargar en VM (CommonJS) */
   source = source.replace(/\bexport\s+(const|function|let|var|class)\b/g, '$1');
-  const context = {};
+  const context = { URL };
 
   vm.createContext(context);
   vm.runInContext(

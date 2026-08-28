@@ -7,6 +7,7 @@
  * Uso: npm run build
  */
 import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
+import { deflateRawSync } from 'node:zlib';
 import { join, relative, sep, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -52,36 +53,36 @@ function crc32(buf) {
   return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
-function localFileHeader(name, crc, uncompressedSize) {
+function localFileHeader(name, crc, compressedSize, uncompressedSize, method) {
   const nameBytes = Buffer.from(name, 'utf8');
   const header = Buffer.alloc(30);
   header.writeUInt32LE(0x04034b50, 0);
   header.writeUInt16LE(20, 4);
   header.writeUInt16LE(0, 6);
-  /* Metodo 0 = STORE (sin compresion) para evitar dependencias de zlib */
-  header.writeUInt16LE(0, 8);
+  /* 8 = DEFLATE, 0 = STORE (fallback si no comprime) */
+  header.writeUInt16LE(method, 8);
   header.writeUInt16LE(0, 10);
   header.writeUInt16LE(0, 12);
   header.writeUInt32LE(crc, 14);
-  header.writeUInt32LE(uncompressedSize, 18);
+  header.writeUInt32LE(compressedSize, 18);
   header.writeUInt32LE(uncompressedSize, 22);
   header.writeUInt16LE(nameBytes.length, 26);
   header.writeUInt16LE(0, 28);
   return Buffer.concat([header, nameBytes]);
 }
 
-function centralDirHeader(name, crc, uncompressedSize, offset) {
+function centralDirHeader(name, crc, compressedSize, uncompressedSize, offset, method) {
   const nameBytes = Buffer.from(name, 'utf8');
   const header = Buffer.alloc(46);
   header.writeUInt32LE(0x02014b50, 0);
   header.writeUInt16LE(20, 4);
   header.writeUInt16LE(20, 6);
   header.writeUInt16LE(0, 8);
-  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(method, 10);
   header.writeUInt16LE(0, 12);
   header.writeUInt16LE(0, 14);
   header.writeUInt32LE(crc, 16);
-  header.writeUInt32LE(uncompressedSize, 20);
+  header.writeUInt32LE(compressedSize, 20);
   header.writeUInt32LE(uncompressedSize, 24);
   header.writeUInt16LE(nameBytes.length, 28);
   header.writeUInt16LE(0, 30);
@@ -119,12 +120,19 @@ for (const file of files) {
   const content = readFileSync(file.path);
   const crc = crc32(content);
   const name = file.rel.split(sep).join('/');
+  const nameBytes = Buffer.from(name, 'utf8');
 
-  chunks.push(localFileHeader(name, crc, content.length));
-  chunks.push(content);
+  /* DEFLATE con zlib integrado de Node; fallback a STORE si no reduce tamaño */
+  const deflated = deflateRawSync(content, { level: 9 });
+  const useDeflate = deflated.length < content.length;
+  const payload = useDeflate ? deflated : content;
+  const method = useDeflate ? 8 : 0;
 
-  centralRecords.push(centralDirHeader(name, crc, content.length, offset));
-  offset += 30 + Buffer.from(name, 'utf8').length + content.length;
+  chunks.push(localFileHeader(name, crc, payload.length, content.length, method));
+  chunks.push(payload);
+
+  centralRecords.push(centralDirHeader(name, crc, payload.length, content.length, offset, method));
+  offset += 30 + nameBytes.length + payload.length;
 }
 
 const centralDir = Buffer.concat(centralRecords);

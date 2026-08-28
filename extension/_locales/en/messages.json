@@ -1,24 +1,251 @@
 {
   "extName": {
     "message": "Search Engine Converter",
-    "description": "Extension name"
+    "description": "Nombre de la extensión"
   },
   "extDescription": {
     "message": "Convert searches across 33 engines: Google, Brave, DuckDuckGo, Bing, Amazon, YouTube, Wikipedia and more",
-    "description": "Extension description shown in the Chrome Web Store"
+    "description": "Description of the extension shown in the Chrome Web Store"
   },
   "commandConvertDefault": {
     "message": "Convert current search to default engine",
-    "description": "Global keyboard shortcut description for converting to the default engine"
+    "description": "Description of the global keyboard shortcut to convert to the default engine"
   },
   "commandConvertN": {
     "message": "Convert current search to engine $position$",
-    "description": "Keyboard shortcut description for converting to engine N",
     "placeholders": {
       "position": {
         "content": "$1",
         "example": "1"
       }
-    }
+    },
+    "description": "Description of the keyboard shortcut to convert to engine N"
+  },
+  "appTitle": {
+    "message": "Search Engine Converter",
+    "description": "Título de la extensión en la interfaz"
+  },
+  "githubLink": {
+    "message": "GitHub",
+    "description": "Enlace al repositorio"
+  },
+  "openOptions": {
+    "message": "Settings",
+    "description": "Button to open the options page"
+  },
+  "clearSearch": {
+    "message": "Clear search",
+    "description": "Button to clear the search box"
+  },
+  "searchPlaceholder": {
+    "message": "Type a search…",
+    "description": "Search box placeholder"
+  },
+  "statusDetected": {
+    "message": "Detected engine: $engine$$suffix$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "Google"
+      },
+      "suffix": {
+        "content": "$2"
+      }
+    },
+    "description": "Status chip when a search engine is detected"
+  },
+  "statusImages": {
+    "message": "images",
+    "description": "Suffix when the detected search is an image search"
+  },
+  "statusNotSearch": {
+    "message": "Not a search page · type to search",
+    "description": "Status chip when the tab is not a search"
+  },
+  "statusManualOnly": {
+    "message": "Type to search",
+    "description": "Status chip when the tabs API is unavailable"
+  },
+  "statusNoQuery": {
+    "message": "Type a search term",
+    "description": "Error when there is nothing to search"
+  },
+  "statusEngineInvalid": {
+    "message": "Unsupported engine",
+    "description": "Error when the selected engine is invalid"
+  },
+  "tooltipConvert": {
+    "message": "Convert to $engine$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "DuckDuckGo"
+      }
+    },
+    "description": "Engine button tooltip when a search is detected"
+  },
+  "tooltipSearch": {
+    "message": "Search on $engine$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "DuckDuckGo"
+      }
+    },
+    "description": "Engine button tooltip for quick search"
+  },
+  "tooltipCopy": {
+    "message": "Copy default engine URL",
+    "description": "Button to copy the converted URL to the clipboard"
+  },
+  "copiedToClipboard": {
+    "message": "URL copied to clipboard",
+    "description": "Copy confirmation"
+  },
+  "copyFailed": {
+    "message": "Failed to copy URL",
+    "description": "Clipboard copy error"
+  },
+  "optTitle": {
+    "message": "Settings",
+    "description": "Options page title"
+  },
+  "optDefaultTitle": {
+    "message": "Default engine",
+    "description": "Default engine section"
+  },
+  "optDefaultHint": {
+    "message": "Used for the context menu quick action, Enter in the popup and the omnibox.",
+    "description": "Default engine section description"
+  },
+  "optDomainsTitle": {
+    "message": "Domains",
+    "description": "Regionalizable domains section"
+  },
+  "optAmazonDomain": {
+    "message": "Amazon domain",
+    "description": "Amazon domain selector label"
+  },
+  "optYoutubeDomain": {
+    "message": "YouTube domain",
+    "description": "YouTube domain selector label"
+  },
+  "optVisibilityTitle": {
+    "message": "Visible engines",
+    "description": "Button visibility section"
+  },
+  "optVisibilityHint": {
+    "message": "Choose which buttons appear in the popup.",
+    "description": "Visibility section description"
+  },
+  "optOrderTitle": {
+    "message": "Button order",
+    "description": "Reorder section"
+  },
+  "optOrderHint": {
+    "message": "Drag, or use the arrows to move with the keyboard. Positions 1-9 have Alt+N shortcuts in the popup.",
+    "description": "Order section description"
+  },
+  "optCustomTitle": {
+    "message": "Custom engines",
+    "description": "Custom engines section"
+  },
+  "optCustomHint": {
+    "message": "Add your own engines. The URL must start with https:// and contain {query} where the search term goes.",
+    "description": "Custom engines section description"
+  },
+  "optCustomNamePh": {
+    "message": "Name (e.g. My Engine)",
+    "description": "Custom engine name placeholder"
+  },
+  "optCustomIcon": {
+    "message": "Custom engine icon",
+    "description": "Icon selector"
+  },
+  "optCustomColor": {
+    "message": "Custom engine color",
+    "description": "Color selector"
+  },
+  "optCustomAdd": {
+    "message": "Add",
+    "description": "Add custom engine button"
+  },
+  "optPreview": {
+    "message": "Preview:",
+    "description": "Custom engine URL preview label"
+  },
+  "optNoCustom": {
+    "message": "No custom engines",
+    "description": "Empty state of the custom engines list"
+  },
+  "optDeleteCustom": {
+    "message": "Delete $engine$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "My Engine"
+      }
+    },
+    "description": "Delete custom engine button"
+  },
+  "optMoveUp": {
+    "message": "Move up",
+    "description": "Move position up button"
+  },
+  "optMoveDown": {
+    "message": "Move down",
+    "description": "Move position down button"
+  },
+  "optCustomAdded": {
+    "message": "Custom engine added",
+    "description": "Custom engine created confirmation"
+  },
+  "optCustomRemoved": {
+    "message": "Custom engine removed",
+    "description": "Custom engine deleted confirmation"
+  },
+  "optCustomInvalid": {
+    "message": "Invalid data. The URL must start with https:// and contain {query}",
+    "description": "Custom engine validation error"
+  },
+  "optCustomDupe": {
+    "message": "An engine with that ID already exists",
+    "description": "Duplicate id error"
+  },
+  "optBackupTitle": {
+    "message": "Backup",
+    "description": "Import/export section"
+  },
+  "optBackupHint": {
+    "message": "Export your settings to keep them or transfer them to another machine.",
+    "description": "Backup section description"
+  },
+  "optExport": {
+    "message": "Export",
+    "description": "Export button"
+  },
+  "optImport": {
+    "message": "Import",
+    "description": "Import button"
+  },
+  "optExported": {
+    "message": "Settings exported",
+    "description": "Export confirmation"
+  },
+  "optImported": {
+    "message": "Settings imported successfully",
+    "description": "Import confirmation"
+  },
+  "optImportBadFormat": {
+    "message": "Invalid file: wrong format",
+    "description": "Imported file format error"
+  },
+  "optImportReadError": {
+    "message": "Error reading the JSON file",
+    "description": "Imported file read error"
+  },
+  "optSaved": {
+    "message": "Saved",
+    "description": "Options page autosave indicator"
   }
 }

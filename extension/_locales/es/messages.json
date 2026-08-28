@@ -13,12 +13,239 @@
   },
   "commandConvertN": {
     "message": "Convertir búsqueda actual al motor $position$",
-    "description": "Descripción del atajo de teclado para convertir al motor N",
     "placeholders": {
       "position": {
         "content": "$1",
         "example": "1"
       }
-    }
+    },
+    "description": "Descripción del atajo de teclado para convertir al motor N"
+  },
+  "appTitle": {
+    "message": "Search Engine Converter",
+    "description": "Título de la extensión en la interfaz"
+  },
+  "githubLink": {
+    "message": "GitHub",
+    "description": "Enlace al repositorio"
+  },
+  "openOptions": {
+    "message": "Configuración",
+    "description": "Botón para abrir la página de opciones"
+  },
+  "clearSearch": {
+    "message": "Limpiar búsqueda",
+    "description": "Botón para limpiar la caja de búsqueda"
+  },
+  "searchPlaceholder": {
+    "message": "Escribe una búsqueda…",
+    "description": "Placeholder de la caja de búsqueda"
+  },
+  "statusDetected": {
+    "message": "Motor detectado: $engine$$suffix$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "Google"
+      },
+      "suffix": {
+        "content": "$2"
+      }
+    },
+    "description": "Chip de estado cuando se detecta un motor de búsqueda"
+  },
+  "statusImages": {
+    "message": "imágenes",
+    "description": "Sufijo del estado cuando la búsqueda detectada es de imágenes"
+  },
+  "statusNotSearch": {
+    "message": "No es una página de búsqueda · escribe para buscar",
+    "description": "Chip de estado cuando la pestaña no es una búsqueda"
+  },
+  "statusManualOnly": {
+    "message": "Escribe para buscar",
+    "description": "Chip de estado cuando la API de pestañas no está disponible"
+  },
+  "statusNoQuery": {
+    "message": "Escribe un término de búsqueda",
+    "description": "Error cuando no hay texto que buscar"
+  },
+  "statusEngineInvalid": {
+    "message": "Motor no soportado",
+    "description": "Error cuando el motor seleccionado no es válido"
+  },
+  "tooltipConvert": {
+    "message": "Convertir a $engine$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "DuckDuckGo"
+      }
+    },
+    "description": "Tooltip de un botón de motor cuando hay una búsqueda detectada"
+  },
+  "tooltipSearch": {
+    "message": "Buscar en $engine$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "DuckDuckGo"
+      }
+    },
+    "description": "Tooltip de un botón de motor para búsqueda rápida"
+  },
+  "tooltipCopy": {
+    "message": "Copiar URL del motor predeterminado",
+    "description": "Botón para copiar la URL convertida al portapapeles"
+  },
+  "copiedToClipboard": {
+    "message": "URL copiada al portapapeles",
+    "description": "Confirmación de copiado"
+  },
+  "copyFailed": {
+    "message": "Error al copiar URL",
+    "description": "Error al copiar al portapapeles"
+  },
+  "optTitle": {
+    "message": "Configuración",
+    "description": "Título de la página de opciones"
+  },
+  "optDefaultTitle": {
+    "message": "Motor predeterminado",
+    "description": "Sección de motor predeterminado"
+  },
+  "optDefaultHint": {
+    "message": "Se usa para la acción rápida del menú contextual, Enter en el popup y la omnibox.",
+    "description": "Descripción de la sección de motor predeterminado"
+  },
+  "optDomainsTitle": {
+    "message": "Dominios",
+    "description": "Sección de dominios regionalizables"
+  },
+  "optAmazonDomain": {
+    "message": "Dominio de Amazon",
+    "description": "Etiqueta del selector de dominio de Amazon"
+  },
+  "optYoutubeDomain": {
+    "message": "Dominio de YouTube",
+    "description": "Etiqueta del selector de dominio de YouTube"
+  },
+  "optVisibilityTitle": {
+    "message": "Motores visibles",
+    "description": "Sección de visibilidad de botones"
+  },
+  "optVisibilityHint": {
+    "message": "Elige qué botones aparecen en el popup.",
+    "description": "Descripción de la sección de visibilidad"
+  },
+  "optOrderTitle": {
+    "message": "Orden de los botones",
+    "description": "Sección de reordenación"
+  },
+  "optOrderHint": {
+    "message": "Arrastra, o usa las flechas para mover con teclado. Las posiciones 1-9 tienen atajo Alt+N en el popup.",
+    "description": "Descripción de la sección de orden"
+  },
+  "optCustomTitle": {
+    "message": "Motores personalizados",
+    "description": "Sección de motores personalizados"
+  },
+  "optCustomHint": {
+    "message": "Añade tus propios motores. La URL debe empezar por https:// y contener {query} donde irá el término de búsqueda.",
+    "description": "Descripción de la sección de motores personalizados"
+  },
+  "optCustomNamePh": {
+    "message": "Nombre (ej: Mi Motor)",
+    "description": "Placeholder del nombre del motor personalizado"
+  },
+  "optCustomIcon": {
+    "message": "Icono del motor personalizado",
+    "description": "Selector de icono"
+  },
+  "optCustomColor": {
+    "message": "Color del motor personalizado",
+    "description": "Selector de color"
+  },
+  "optCustomAdd": {
+    "message": "Añadir",
+    "description": "Botón para añadir motor personalizado"
+  },
+  "optPreview": {
+    "message": "Vista previa:",
+    "description": "Etiqueta de la vista previa de la URL del motor personalizado"
+  },
+  "optNoCustom": {
+    "message": "No hay motores personalizados",
+    "description": "Estado vacío de la lista de motores personalizados"
+  },
+  "optDeleteCustom": {
+    "message": "Eliminar $engine$",
+    "placeholders": {
+      "engine": {
+        "content": "$1",
+        "example": "Mi Motor"
+      }
+    },
+    "description": "Botón para eliminar un motor personalizado"
+  },
+  "optMoveUp": {
+    "message": "Subir",
+    "description": "Botón para subir posición en el orden"
+  },
+  "optMoveDown": {
+    "message": "Bajar",
+    "description": "Botón para bajar posición en el orden"
+  },
+  "optCustomAdded": {
+    "message": "Motor personalizado añadido",
+    "description": "Confirmación de alta de motor personalizado"
+  },
+  "optCustomRemoved": {
+    "message": "Motor personalizado eliminado",
+    "description": "Confirmación de baja de motor personalizado"
+  },
+  "optCustomInvalid": {
+    "message": "Datos no válidos. La URL debe empezar por https:// y contener {query}",
+    "description": "Error de validación del motor personalizado"
+  },
+  "optCustomDupe": {
+    "message": "Ya existe un motor con ese ID",
+    "description": "Error de id duplicado"
+  },
+  "optBackupTitle": {
+    "message": "Copia de seguridad",
+    "description": "Sección de importación/exportación"
+  },
+  "optBackupHint": {
+    "message": "Exporta tu configuración para guardarla o transferirla a otro equipo.",
+    "description": "Descripción de la sección de copia de seguridad"
+  },
+  "optExport": {
+    "message": "Exportar",
+    "description": "Botón de exportación"
+  },
+  "optImport": {
+    "message": "Importar",
+    "description": "Botón de importación"
+  },
+  "optExported": {
+    "message": "Configuración exportada",
+    "description": "Confirmación de exportación"
+  },
+  "optImported": {
+    "message": "Configuración importada correctamente",
+    "description": "Confirmación de importación"
+  },
+  "optImportBadFormat": {
+    "message": "Fichero no válido: formato incorrecto",
+    "description": "Error de formato del fichero importado"
+  },
+  "optImportReadError": {
+    "message": "Error al leer el fichero JSON",
+    "description": "Error de lectura del fichero importado"
+  },
+  "optSaved": {
+    "message": "Guardado",
+    "description": "Indicador de autoguardado de la página de opciones"
   }
 }

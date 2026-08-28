@@ -3,7 +3,7 @@
   "minimum_chrome_version": "121",
   "name": "__MSG_extName__",
   "short_name": "Search Converter",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "__MSG_extDescription__",
   "author": "https://github.com/686f6c61",
   "homepage_url": "https://github.com/686f6c61/chrome-search-engine-converter",
@@ -43,6 +43,10 @@
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "background": {
     "service_worker": "background.js",

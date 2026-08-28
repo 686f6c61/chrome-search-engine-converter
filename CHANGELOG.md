@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.3.0] - 2026-08-28
+
+### Añadido
+- Página de opciones real (`options_ui` en `options.html`): toda la configuración sale del popup y gana espacio
+- `config.js`: carga/saneado/persistencia de configuración compartida entre popup y opciones, con tests propios (`config.test.cjs`)
+- `ui.js` y `css/ui.css`: utilidades compartidas (i18n por atributos `data-i18n*`, notificaciones, tokens de color con variables CSS y modo oscuro)
+- Internacionalización completa de la interfaz (`_locales/es` y `_locales/en`); los textos del popup y las opciones ya no están fijados en español
+- Indicador de autoguardado "Guardado" en la página de opciones; desaparece el botón Guardar (todo se persiste con debounce)
+- Reordenación de botones accesible por teclado (botones subir/bajar) además del arrastre con SortableJS
+- Vista previa en vivo de la URL del motor personalizado al escribirla, con marca de error si la validación falla
+- Pistas visuales de atajo Alt+1..9 en los nueve primeros botones del popup; el motor predeterminado puede ser personalizado
+- Motor de versión en pie de página leído de `chrome.runtime.getManifest()` (sin hardcodear)
+- Capturas de pantalla de `assets/` regeneradas para la nueva interfaz
+
+### Cambiado
+- **Rediseño del popup a un único flujo contextual**: fuera el toggle Convertir/Buscar. La caja de búsqueda se autorellena con la búsqueda detectada (queda vacía y con el foco si la página no es una búsqueda) y todos los botones hacen lo mismo: buscar ese texto en el motor pulsado. Enter busca en el predeterminado
+- El botón de copiar URL pasa a la barra superior del popup (copia la conversión al predeterminado); se eliminan los botones de copiar por motor
+- Popup sin panel de configuración: el engranaje abre la página de opciones
+- `normalizeDefaultSearchEngine` acepta también motores personalizados (validados) como predeterminados
+
+### Corregido
+- Los botones subir/bajar del orden y añadir/exportar/importar mostraban iconos inexistentes: el subset de Font Awesome empaquetado no incluye `fa-arrow-up/down`, `fa-plus`, `fa-download` ni `fa-upload`; se renderizan como glifos de texto (↑ ↓ +) con Roboto
+- El selector de iconos de motores personalizados solo ofrecía 15 iconos que no estan en el subset (cuadrados vacios); ahora ofrece 16 iconos reales del subset
+- `normalizeDefaultSearchEngine` y `buildSearchUrl` usan `Object.hasOwn`: ids de la cadena de prototipo (`__proto__`, `constructor`) ya no provocan fallos del service worker
+- La importación de configuración sanea los motores personalizados con `validateCustomEngine` antes de renderizarlos o usarlos
+- `detectEngine` compara host y ruta tras parsear la URL: se eliminan falsos positivos por substring (p. ej. `nx.com/search` ya no detecta Twitter)
+- `extractQuery` solo extrae términos de páginas de motores reconocidos: `?q=` o `?i=` arbitrarios de cualquier web ya no se capturan
+- `buildSearchUrl` reemplaza todas las ocurrencias de `{query}` en el template
+- La detección del popup funciona con motores personalizados (mapa combinado)
+
+### Añadido
+- Motores personalizados disponibles en el menú contextual y en la omnibox (`sc <término> en <motor>`)
+- `build-zip.mjs` empaqueta con DEFLATE (método 8) con fallback a STORE: ZIP más pequeño y válido
+- Tests de regresión de las correcciones anteriores (101 tests en total)
+- Los contextos VM de los tests exponen `URL`, necesario tras parsear URLs en `detectEngine`
+
+### Cambiado
+- Comentarios obsoletos de `background.js` y `engines.js` actualizados al modelo de módulos ES
+
+
 ## [2.2.0] - 2026-06-19
 
 ### Añadido
@@ -91,3 +131,5 @@
 - Motor predeterminado para menú contextual
 - Content Security Policy restrictiva
 - Política de privacidad
+
+[2.3.0]: https://github.com/686f6c61/chrome-search-engine-converter/compare/v2.2.0...v2.3.0

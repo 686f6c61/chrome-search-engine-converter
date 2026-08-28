@@ -14,9 +14,9 @@
  *   - Por eso se recrea el estado (menus + config) en ambos eventos
  *
  * Seguridad:
- *   - import dinámico carga solo archivos locales empaquetados en la extensión
+ *   - import estatico carga solo archivos locales empaquetados en la extension
  *   - Los dominios de Amazon/YouTube se validan contra whitelists de engines.js
- *   - La configuracion se parsea con try/catch para manejar datos corruptos
+ *   - La configuracion se parsea con try/catch y se sanea al leerla de storage
  *   - No se ejecuta codigo dinamico ni se cargan scripts remotos
  *
  * Permisos necesarios (manifest.json):
@@ -42,7 +42,8 @@ import {
   buildSearchUrl,
   extractQuery,
   detectEngine,
-  isImageSearch
+  isImageSearch,
+  getMergedEngines
 } from './engines.js';
 
 /**
@@ -101,7 +102,10 @@ function loadConfig(onComplete) {
           nextConfig.youtubeDomain = savedConfig.youtubeDomain;
         }
 
-        nextConfig.defaultSearchEngine = normalizeDefaultSearchEngine(savedConfig.defaultSearchEngine);
+        nextConfig.defaultSearchEngine = normalizeDefaultSearchEngine(
+          savedConfig.defaultSearchEngine,
+          Array.isArray(savedConfig.customEngines) ? savedConfig.customEngines : []
+        );
 
         if (Array.isArray(savedConfig.customEngines)) {
           nextConfig.customEngines = savedConfig.customEngines;
@@ -120,7 +124,7 @@ function loadConfig(onComplete) {
 }
 
 function getDefaultEngineId() {
-  return normalizeDefaultSearchEngine(config.defaultSearchEngine);
+  return normalizeDefaultSearchEngine(config.defaultSearchEngine, config.customEngines || []);
 }
 
 /**
@@ -133,7 +137,8 @@ function getDefaultEngineId() {
 function createContextMenus() {
   chrome.contextMenus.removeAll(() => {
     const defaultEngineId = getDefaultEngineId();
-    const defaultEngine = SEARCH_ENGINES[defaultEngineId] || SEARCH_ENGINES[DEFAULT_SEARCH_ENGINE_ID];
+    const enginesForMenus = getMergedEngines(config.customEngines || []);
+    const defaultEngine = enginesForMenus[defaultEngineId] || enginesForMenus[DEFAULT_SEARCH_ENGINE_ID];
 
     /* Accion rapida: usa el motor predeterminado del usuario */
     chrome.contextMenus.create({
@@ -155,8 +160,10 @@ function createContextMenus() {
       contexts: ['selection']
     });
 
-    /* Submenus: uno por cada motor con showInContextMenu habilitado */
-    const menuEngines = Object.values(SEARCH_ENGINES)
+    /* Submenus: uno por cada motor con showInContextMenu habilitado
+       (predefinidos + personalizados validados) */
+    const mergedEngines = getMergedEngines(config.customEngines || []);
+    const menuEngines = Object.values(mergedEngines)
       .filter(engine => engine.showInContextMenu);
 
     menuEngines.forEach(engine => {
@@ -231,7 +238,7 @@ chrome.commands.onCommand.addListener((command) => {
 
     const activeTab = tabs[0];
     const url = activeTab.url || '';
-    const query = extractQuery(url);
+    const query = extractQuery(url, getMergedEngines(config.customEngines || []));
 
     if (!query) return;
 
@@ -286,13 +293,14 @@ chrome.omnibox.onInputEntered.addListener((text, disposition) => {
     query = match[1];
     const requestedEngine = match[2].toLowerCase();
 
-    /* Buscar por id, nombre o buttonId (case-insensitive) */
-    const engines = SEARCH_ENGINES;
+    /* Buscar por id, nombre o buttonId (case-insensitive), incluyendo
+       los motores personalizados validados */
+    const engines = getMergedEngines(config.customEngines || []);
     for (const [id, engine] of Object.entries(engines)) {
       if (
         id.toLowerCase() === requestedEngine ||
         engine.name.toLowerCase() === requestedEngine ||
-        engine.buttonId.toLowerCase() === requestedEngine
+        (engine.buttonId || '').toLowerCase() === requestedEngine
       ) {
         engineId = id;
         break;
@@ -319,7 +327,8 @@ chrome.omnibox.onInputChanged.addListener((text, suggest) => {
     return;
   }
 
-  const defaultEngine = SEARCH_ENGINES[getDefaultEngineId()];
+  const enginesForSuggestions = getMergedEngines(config.customEngines || []);
+  const defaultEngine = enginesForSuggestions[getDefaultEngineId()];
   const defaultName = defaultEngine ? defaultEngine.name : 'Google';
   const suggestions = [
     {
